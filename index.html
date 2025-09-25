@@ -2,14 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Car • First-Person Cockpit HUD</title>
+  <title>Car • Asphalt Roads with Intersection Aprons</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     html, body { height: 100%; margin: 0; background:#111; overflow: hidden; }
     #info { position: absolute; top: 10px; left: 10px; color: #eee; font-family: system-ui, sans-serif; }
     canvas { display:block; }
   </style>
-
   <script type="importmap">
   {
     "imports": {
@@ -27,87 +26,185 @@ import * as THREE from 'three';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 
-//
+/* ---------- Paths ---------- */
+const WH_PATH = 'assets/50-ware-house/';
+const WH_OBJ  = 'ware house.obj';
+
+const CAR_ASSETS = 'assets/Car-Model/';
+const CAR_OBJ = 'Car.obj';
+const CAR_MTL = 'Car.mtl';
+/* --------------------------- */
+
 // ---------- Renderer / Scene / Camera ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101018);
 
-// Wider FOV + close near-plane so cockpit won’t clip
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.03, 2000);
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.03, 2000);
 camera.position.set(0, 6, 12);
-scene.add(camera); // IMPORTANT: add camera so its children (HUD) render
+scene.add(camera);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-sun.position.set(10, 15, 8);
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+
+const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+sun.position.set(25, 35, 10);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -220; sun.shadow.camera.right = 220;
+sun.shadow.camera.top = 220;  sun.shadow.camera.bottom = -220;
 scene.add(sun);
 
-// ground + grid (for reference)
+// ---------- World base (sidewalk look) ----------
+const MAP_SIZE = 1200;
+const MAP_HALF = MAP_SIZE / 2;
+
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(2000, 2000),
-  new THREE.MeshStandardMaterial({ color: 0x2b2f3a, roughness: 0.9 })
+  new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE),
+  new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.96, metalness: 0.0 })
 );
 ground.rotation.x = -Math.PI/2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const grid = new THREE.GridHelper(2000, 1000, 0x555a66, 0x2e3340);
-grid.material.opacity = 0.25;
+// Black grid lines (sidewalk gaps)
+const SLAB_SIZE = 6;
+const divisions = Math.max(2, Math.round(MAP_SIZE / SLAB_SIZE));
+const grid = new THREE.GridHelper(MAP_SIZE, divisions, 0x000000, 0x000000);
 grid.material.transparent = true;
+grid.material.opacity = 0.65;
+grid.position.y = 0.0005; // below roads
 scene.add(grid);
 
-//
-// ---------- Roads pack (loaded as-is) ----------
-const ROADS_ASSETS = '/assets/Roads/';   // change if needed
-const ROADS_MTL = 'Roads.mtl';
-const ROADS_OBJ = 'Roads.obj';
+// ---------- Road / Crosswalk tiles ----------
+const ROAD_COLOR  = 0x2b2b2b; // dark asphalt
+const BASE_HEIGHT = 0.02;     // all roads/crosswalks sit above ground
+const JOIN_EPS    = 1.0;      // small overlap to hide seams
 
-function setAnisotropy(root) {
-  const aniso = renderer.capabilities.getMaxAnisotropy();
-  root.traverse(o => {
-    if (o.isMesh) {
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of mats) if (m && m.map) m.map.anisotropy = aniso;
-      o.receiveShadow = true;
-      o.castShadow = false;
-    }
-  });
+function createRoadTile({
+  length = 32, width = 10,
+  baseHeight = BASE_HEIGHT,
+  edgeWidth = 0.18,
+  dashLength = 2.2, dashWidth = 0.28
+} = {}) {
+  const g = new THREE.Group();
+
+  const asphalt = new THREE.Mesh(
+    new THREE.PlaneGeometry(length, width),
+    new THREE.MeshStandardMaterial({ color: ROAD_COLOR, roughness: 0.98 })
+  );
+  asphalt.rotation.x = -Math.PI/2;
+  asphalt.position.y = baseHeight;
+  asphalt.receiveShadow = true;
+  g.add(asphalt);
+
+  const makeStrip = (L, W, color) => {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(L, W),
+      new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
+    );
+    m.rotation.x = -Math.PI/2;
+    m.position.y = baseHeight + 0.001;
+    return m;
+  };
+
+  const edgeOffset = width/2 - edgeWidth/2;
+  const left  = makeStrip(length, edgeWidth, 0xFFC107); left.position.z =  edgeOffset;
+  const right = makeStrip(length, edgeWidth, 0xFFC107); right.position.z = -edgeOffset;
+  g.add(left, right);
+
+  const gap = length / 4;
+  for (const x of [-gap, 0, gap]) {
+    const dash = makeStrip(dashLength, dashWidth, 0xFFFFFF);
+    dash.position.x = x;
+    g.add(dash);
+  }
+  return g;
 }
 
-{
-  const mtl = new MTLLoader();
-  mtl.setPath(ROADS_ASSETS);
-  mtl.setResourcePath(ROADS_ASSETS);
-  mtl.load(ROADS_MTL, (materials) => {
-    materials.preload();
-    const obj = new OBJLoader();
-    obj.setMaterials(materials);
-    obj.setPath(ROADS_ASSETS);
-    obj.load(ROADS_OBJ, (root) => {
-      setAnisotropy(root);
-      root.position.y = 0.02; // avoid z-fighting with ground
-      scene.add(root);
-    });
-  });
+/* Crosswalk with SIDE APRONS
+   - Base crosswalk asphalt is slightly bigger (JOIN_EPS) to tuck under neighbors.
+   - Two APRONS extend beyond the left/right edges (±Z) by 'apronDepth'.
+   - Aprons sit 0.5 mm *below* road height to avoid any z-fighting while still
+     covering the visual gap. */
+function createCrosswalkTile({
+  length = 14, width = 10,
+  baseHeight = BASE_HEIGHT,
+  edgeMargin = 0.6, stubDepth = 0.9,
+  stripeThickness = 0.28, gap = 0.95,
+  apronDepth = 1.0, // how far the side asphalt sticks out towards the branches
+  apronBleedX = 0.2 // tiny extra in X so aprons are a touch wider than the crosswalk
+} = {}) {
+  const g = new THREE.Group();
+
+  // base asphalt (slightly oversized to tuck under)
+  const base = new THREE.Mesh(
+    new THREE.PlaneGeometry(length + 2*JOIN_EPS, width + 2*JOIN_EPS),
+    new THREE.MeshStandardMaterial({ color: ROAD_COLOR, roughness: 0.98 })
+  );
+  base.rotation.x = -Math.PI/2;
+  base.position.y = baseHeight;
+  base.receiveShadow = true;
+  g.add(base);
+
+  // crosswalk stripes
+  const makeStrip = (L, W) => {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(L, W),
+      new THREE.MeshBasicMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide })
+    );
+    m.rotation.x = -Math.PI/2;
+    m.position.y = baseHeight + 0.0015;
+    return m;
+  };
+
+  const usableX = length - 2*edgeMargin;
+  const usableZ = width  - 2*edgeMargin;
+  const countX = Math.max(2, Math.floor((usableX + gap) / (stripeThickness + gap)));
+  const countZ = Math.max(2, Math.floor((usableZ + gap) / (stripeThickness + gap)));
+  const startX = -length/2 + edgeMargin + stripeThickness/2;
+  const startZ = -width /2 + edgeMargin + stripeThickness/2;
+
+  for (let i = 0; i < countX; i++) {
+    const x = startX + i * (stripeThickness + gap);
+    const top = makeStrip(stripeThickness, stubDepth);    top.position.set(x, base.position.y + 0.0015,  width/2 - stubDepth/2);
+    const bottom = makeStrip(stripeThickness, stubDepth); bottom.position.set(x, base.position.y + 0.0015, -width/2 + stubDepth/2);
+    g.add(top, bottom);
+  }
+  for (let j = 0; j < countZ; j++) {
+    const z = startZ + j * (stripeThickness + gap);
+    const left  = makeStrip(stubDepth, stripeThickness); left.position.set(-length/2 + stubDepth/2, base.position.y + 0.0015, z);
+    const right = makeStrip(stubDepth, stripeThickness); right.position.set( length/2 - stubDepth/2, base.position.y + 0.0015, z);
+    g.add(left, right);
+  }
+
+  // --------- NEW: side asphalt aprons (underlap the branch roads) ---------
+  const apronY = baseHeight - 0.0005; // a half millimeter below to avoid z-fighting
+  const apronX = length + 2*JOIN_EPS + 2*apronBleedX;
+  const apronGeo = new THREE.PlaneGeometry(apronX, apronDepth);
+  const apronMat = new THREE.MeshStandardMaterial({ color: ROAD_COLOR, roughness: 0.98 });
+
+  const apronTop = new THREE.Mesh(apronGeo, apronMat);
+  apronTop.rotation.x = -Math.PI/2;
+  apronTop.position.set(0, apronY,  width/2 + apronDepth/2);
+  const apronBot = apronTop.clone();
+  apronBot.position.z = -width/2 - apronDepth/2;
+
+  g.add(apronTop, apronBot);
+  // ------------------------------------------------------------------------
+
+  return g;
 }
 
-//
-// ---------- Car container & model ----------
+// ---------- Car ----------
 const car = new THREE.Group();
 scene.add(car);
-
-const CAR_ASSETS = '/assets/Car-Model/'; // change if needed
-const CAR_OBJ = 'Car.obj';
-const CAR_MTL = 'Car.mtl';
 
 {
   const mtl = new MTLLoader();
@@ -119,141 +216,165 @@ const CAR_MTL = 'Car.mtl';
     objLoader.setMaterials(materials);
     objLoader.setPath(CAR_ASSETS);
     objLoader.load(CAR_OBJ, (obj) => {
-      obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-      obj.rotation.y = Math.PI/2; // model faces +X
-      obj.scale.setScalar(1.0);
+      obj.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace; } });
+      obj.rotation.y = Math.PI/2;
+      car.add(obj);
+    });
+  }, undefined, () => {
+    const objLoader = new OBJLoader();
+    objLoader.setPath(CAR_ASSETS);
+    objLoader.load(CAR_OBJ, (obj) => {
+      obj.traverse(o => { if (o.isMesh) { o.material = new THREE.MeshStandardMaterial({ color: 0xaa0000 }); o.castShadow = o.receiveShadow = true; }});
+      obj.rotation.y = Math.PI/2;
       car.add(obj);
     });
   });
 }
 
-//
-// ---------- FIRST-PERSON COCKPIT HUD (camera child) ----------
-const cockpitRig = new THREE.Group();
-camera.add(cockpitRig);
+// ---------- Grid generation ----------
+const ROAD_WIDTH = 10;
+const ROAD_LEN   = 32;
+const XWALK_LEN  = 14;
+const PERIOD     = 3*ROAD_LEN + XWALK_LEN;
 
-// Black dashboard strip (HUD)
-const dashGeom = new THREE.RingGeometry(0.95, 1.85, 64, 1, Math.PI*0.02, Math.PI*0.96);
-const dashMat  = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide });
-const dashboard = new THREE.Mesh(dashGeom, dashMat);
-dashboard.position.set(0, -0.18, -0.65); // anchored to camera; tweak Y/Z
-dashboard.material.depthTest = false;
-dashboard.material.depthWrite = false;
-dashboard.renderOrder = 999;
-cockpitRig.add(dashboard);
+function makeCenters(min,max){
+  const first = min + ROAD_LEN*3.5 + XWALK_LEN/2;
+  const last  = max - (ROAD_LEN + XWALK_LEN/2);
+  const arr=[]; for (let c=first; c<=last+1e-6; c+=PERIOD) arr.push(c); return arr;
+}
+const xs = makeCenters(-MAP_HALF, +MAP_HALF);
+const zs = makeCenters(-MAP_HALF, +MAP_HALF);
 
-// Gray steering wheel (HUD)
-const wheelMat = new THREE.MeshStandardMaterial({ color: 0x8a8a8a, metalness: 0.0, roughness: 0.35 });
-const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.035, 20, 120), wheelMat);
-wheel.position.set(0.0, -0.02, -0.72);
-wheel.rotation.x = -0.08; // slight tilt
-wheel.material.depthTest = false;
-wheel.material.depthWrite = false;
-wheel.renderOrder = 999;
-cockpitRig.add(wheel);
+function placeCrosswalk(x,z,rot90=false){
+  const m = createCrosswalkTile({
+    length: XWALK_LEN + 2*JOIN_EPS,
+    width:  ROAD_WIDTH + 2*JOIN_EPS,
+    baseHeight: BASE_HEIGHT
+  });
+  m.position.set(x,0,z);
+  if (rot90) m.rotation.y = Math.PI/2;
+  scene.add(m);
+}
+function placeThreeRoadsX(x1,x2,z){
+  const L = ROAD_LEN + JOIN_EPS;
+  const start = x1 + (XWALK_LEN/2) + (ROAD_LEN/2) - JOIN_EPS/2;
+  for (let i=0;i<3;i++){
+    const r = createRoadTile({ length: L, width: ROAD_WIDTH, baseHeight: BASE_HEIGHT });
+    r.position.set(start + i*ROAD_LEN, 0, z);
+    scene.add(r);
+  }
+}
+function placeThreeRoadsZ(z1,z2,x){
+  const L = ROAD_LEN + JOIN_EPS;
+  const start = z1 + (XWALK_LEN/2) + (ROAD_LEN/2) - JOIN_EPS/2;
+  for (let i=0;i<3;i++){
+    const r = createRoadTile({ length: L, width: ROAD_WIDTH, baseHeight: BASE_HEIGHT });
+    r.rotation.y = Math.PI/2;
+    r.position.set(x, 0, start + i*ROAD_LEN);
+    scene.add(r);
+  }
+}
 
-// Optional small hub disk
-const hubMat = new THREE.MeshStandardMaterial({ color: 0x6b6b6b, roughness: 0.6, metalness: 0.0 });
-const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 24), hubMat);
-hub.rotation.x = Math.PI/2;
-hub.position.set(0, -0.02, -0.69);
-hub.material.depthTest = false;
-hub.material.depthWrite = false;
-hub.renderOrder = 999;
-cockpitRig.add(hub);
+// rows & columns
+for (const z of zs){
+  xs.forEach(x=>placeCrosswalk(x,z));
+  for (let i=0;i<xs.length-1;i++) placeThreeRoadsX(xs[i], xs[i+1], z);
+}
+for (const x of xs){
+  for (let j=0;j<zs.length-1;j++) placeThreeRoadsZ(zs[j], zs[j+1], x);
+}
 
-// Steering wheel animation state
-let wheelVisualAngle = 0;
-const MAX_WHEEL_ANGLE = Math.PI/2; // ±90°
+// edge extension: one straight segment from borders (with overlap)
+for (const z of zs){
+  const firstX=xs[0], lastX=xs.at(-1);
+  let cx=firstX-(XWALK_LEN/2)-(ROAD_LEN/2) + JOIN_EPS/2;
+  for(let i=0;i<3;i++){ const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT}); r.position.set(cx - i*ROAD_LEN,0,z); scene.add(r); }
+  cx=lastX+(XWALK_LEN/2)+(ROAD_LEN/2) - JOIN_EPS/2;
+  for(let i=0;i<3;i++){ const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT}); r.position.set(cx + i*ROAD_LEN,0,z); scene.add(r); }
+}
+for (const x of xs){
+  const firstZ=zs[0], lastZ=zs.at(-1);
+  let cz=firstZ-(XWALK_LEN/2)-(ROAD_LEN/2) + JOIN_EPS/2;
+  for(let i=0;i<3;i++){ const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT}); r.rotation.y=Math.PI/2; r.position.set(x,0,cz - i*ROAD_LEN); scene.add(r); }
+  cz=lastZ+(XWALK_LEN/2)+(ROAD_LEN/2) - JOIN_EPS/2;
+  for(let i=0;i<3;i++){ const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT}); r.rotation.y=Math.PI/2; r.position.set(x,0,cz + i*ROAD_LEN); scene.add(r); }
+}
 
-//
-// ---------- Spawn the car ----------
-let firstPerson = true; // start 1st-person so HUD shows
+// ---------- Spawn ----------
+const spawnZ = zs[Math.floor(zs.length / 2)];
+const firstRoadStartX = (-MAP_HALF) + ROAD_LEN;
+const carStartX = firstRoadStartX - 0.4 * ROAD_LEN;
+let firstPerson = true;
 let heading = 0;
-car.position.set(-10, 0, 0);
+
+car.position.set(carStartX, 0, spawnZ);
 car.rotation.y = heading;
 
-//
-// ---------- Controls & kinematics ----------
+// ---------- Warehouse behind the car ----------
+function loadOBJ(path, obj){ return new Promise((res,rej)=> new OBJLoader().setPath(path).load(obj,res,undefined,rej)); }
+const WAREHOUSE_DISTANCE_BEHIND = 40, WAREHOUSE_TARGET_LONGEST = 60;
+
+loadOBJ(WH_PATH, WH_OBJ).then((wh)=>{
+  wh.traverse(o=>{ if(o.isMesh){ o.castShadow=o.receiveShadow=true; if(!o.material) o.material = new THREE.MeshStandardMaterial({ color:0x888888, roughness:0.9 }); } });
+  const box = new THREE.Box3().setFromObject(wh);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const s = WAREHOUSE_TARGET_LONGEST / Math.max(1e-6, Math.max(size.x, size.y, size.z));
+  wh.scale.setScalar(s);
+  const box2 = new THREE.Box3().setFromObject(wh);
+  wh.position.y = -box2.min.y;
+  wh.position.x = carStartX - WAREHOUSE_DISTANCE_BEHIND;
+  wh.position.z = spawnZ;
+  scene.add(wh);
+}).catch(()=>console.warn('Could not load warehouse OBJ. Check WH_PATH/WH_OBJ.'));
+
+// ---------- Controls & movement ----------
 const keys = new Set();
-addEventListener('keydown', (e) => {
-  if (['KeyW','KeyA','KeyS','KeyD','KeyC'].includes(e.code)) e.preventDefault();
-  keys.add(e.code);
-});
-addEventListener('keyup', (e) => keys.delete(e.code));
+addEventListener('keydown', e => { if (['KeyW','KeyA','KeyS','KeyD','KeyC'].includes(e.code)) e.preventDefault(); keys.add(e.code); });
+addEventListener('keyup',   e => keys.delete(e.code));
 
-let speed = 0;
-const params = {
-  accel: 8.0, brake: 12.0, reverseAccel: 6.0,
-  maxFwd: 14.0, maxRev: 6.0,
-  friction: 3.5, steerRate: 1.8, minSteerFactor: 0.35
-};
-
+let speed = 0, wheelAngle = 0;
+const MAX_WHEEL_ANGLE = Math.PI/2;
+const params = { accel: 8.0, brake: 12.0, reverseAccel: 6.0, maxFwd: 14.0, maxRev: 6.0, friction: 3.5, steerRate: 1.8, minSteerFactor: 0.35 };
 const chaseOffset = new THREE.Vector3(-6.5, 3.0, 0.0);
 const camTarget = new THREE.Vector3();
-
-// First-person camera placement relative to car (world-space)
-const FP_EYE_OFFSET = new THREE.Vector3(0.05, 1.55, 0.12); // car-local
-const FP_LOOK_AHEAD = 20;
-const FP_LOOK_UP    = 0.10;
+const FP_EYE_OFFSET = new THREE.Vector3(0.05, 1.55, 0.12);
+const FP_LOOK_AHEAD = 20, FP_LOOK_UP = 0.10;
 
 function update(dt) {
-  // Throttle / brake
   if (keys.has('KeyW')) speed += params.accel * dt;
   else if (keys.has('KeyS')) speed += (speed > 0 ? -params.brake : -params.reverseAccel) * dt;
-  else {
-    const s = Math.sign(speed);
-    speed -= s * params.friction * dt;
-    if (Math.sign(speed) !== s) speed = 0;
-  }
+  else { const s = Math.sign(speed); speed -= s * params.friction * dt; if (Math.sign(speed) !== s) speed = 0; }
   speed = THREE.MathUtils.clamp(speed, -params.maxRev, params.maxFwd);
 
-  // Steering
-  let steerInput = 0;
-  if (keys.has('KeyA')) steerInput += 1;
-  if (keys.has('KeyD')) steerInput -= 1;
+  let steer = 0; if (keys.has('KeyA')) steer += 1; if (keys.has('KeyD')) steer -= 1;
   const steerFactor = THREE.MathUtils.lerp(1.8, params.minSteerFactor, Math.min(Math.abs(speed)/params.maxFwd, 1));
-  heading += params.steerRate * steerFactor * steerInput * dt;
+  heading += params.steerRate * steerFactor * steer * dt;
 
-  // Integrate car
   const forward = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), heading);
   car.position.addScaledVector(forward, speed * dt);
   car.rotation.set(0, heading, 0);
 
-  // Animate steering wheel (HUD rotates around Z)
-  const targetWheel = steerInput * MAX_WHEEL_ANGLE;
-  wheelVisualAngle = THREE.MathUtils.damp(wheelVisualAngle, targetWheel, 12, dt);
-  wheel.rotation.z = wheelVisualAngle;
+  const targetWheel = steer * MAX_WHEEL_ANGLE;
+  wheelAngle = THREE.MathUtils.damp(wheelAngle, targetWheel, 12, dt);
 
-  // Toggle view
   if (keys.has('KeyC')) { firstPerson = !firstPerson; keys.delete('KeyC'); }
-  cockpitRig.visible = firstPerson;
-
-  // Camera follow
   if (firstPerson) {
-    const eyeWorld = FP_EYE_OFFSET.clone()
-      .applyAxisAngle(new THREE.Vector3(0,1,0), heading)
-      .add(car.position);
-    camera.position.lerp(eyeWorld, 0.25);
-
-    camTarget.copy(eyeWorld).addScaledVector(forward, FP_LOOK_AHEAD);
+    const eye = FP_EYE_OFFSET.clone().applyAxisAngle(new THREE.Vector3(0,1,0), heading).add(car.position);
+    camera.position.lerp(eye, 0.25);
+    camTarget.copy(eye).addScaledVector(forward, FP_LOOK_AHEAD);
     camTarget.y += FP_LOOK_UP;
     camera.lookAt(camTarget);
   } else {
-    const offsetWorld = chaseOffset.clone().applyAxisAngle(new THREE.Vector3(0,1,0), heading);
-    const desiredPos = car.position.clone().add(offsetWorld);
-    camera.position.lerp(desiredPos, 0.08);
+    const off = chaseOffset.clone().applyAxisAngle(new THREE.Vector3(0,1,0), heading);
+    camera.position.lerp(car.position.clone().add(off), 0.08);
     camTarget.copy(car.position).addScaledVector(forward, 4.0);
     camera.lookAt(camTarget);
   }
 }
 
-//
-// ---------- Loop ----------
 let last = performance.now();
 function tick(now = performance.now()) {
-  const dt = Math.min(0.033, (now - last) / 1000);
-  last = now;
+  const dt = Math.min(0.033, (now - last)/1000); last = now;
   update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
@@ -261,7 +382,7 @@ function tick(now = performance.now()) {
 tick();
 
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
+  camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
