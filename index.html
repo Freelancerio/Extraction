@@ -2,12 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Car • Asphalt Roads with Intersection Aprons</title>
+  <title>Driving Grid • Perf Streaming + LOD</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    html, body { height: 100%; margin: 0; background:#111; overflow: hidden; }
-    #info { position: absolute; top: 10px; left: 10px; color: #eee; font-family: system-ui, sans-serif; }
-    canvas { display:block; }
+    html, body { height:100%; margin:0; background:#111; overflow:hidden; }
+    #info { position:absolute; top:10px; left:10px; color:#eee; font:14px/1.3 system-ui, sans-serif; }
   </style>
   <script type="importmap">
   {
@@ -19,95 +18,94 @@
   </script>
 </head>
 <body>
-<div id="info">W/S = forward/back • A/D = steer • C = toggle 1st/3rd person</div>
+<div id="info">W/S = forward/back • A/D = steer • C = toggle 1st/3rd • L = lamps • N = day/night • H = headlights</div>
 
 <script type="module">
 import * as THREE from 'three';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 
-/* ---------- Paths ---------- */
+/* ---------- Asset paths (adjust if yours differ) ---------- */
 const WH_PATH = 'assets/50-ware-house/';
 const WH_OBJ  = 'ware house.obj';
-
 const CAR_ASSETS = 'assets/Car-Model/';
 const CAR_OBJ = 'Car.obj';
 const CAR_MTL = 'Car.mtl';
-/* --------------------------- */
+/* --------------------------------------------------------- */
 
 // ---------- Renderer / Scene / Camera ----------
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(2, devicePixelRatio));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMappingExposure = 1.0; // tweaked at night
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101018);
 
 const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.03, 2000);
-camera.position.set(0, 6, 12);
+camera.position.set(0,6,12);
 scene.add(camera);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const amb = new THREE.AmbientLight(0xffffff, 0.45);
+scene.add(amb);
 
 const sun = new THREE.DirectionalLight(0xffffff, 0.85);
-sun.position.set(25, 35, 10);
+sun.position.set(25,35,10);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+// PERF: reduce shadow map size (big win on laptops)
+sun.shadow.mapSize.set(1024,1024);
 sun.shadow.camera.left = -220; sun.shadow.camera.right = 220;
 sun.shadow.camera.top = 220;  sun.shadow.camera.bottom = -220;
 scene.add(sun);
 
-// ---------- World base (sidewalk look) ----------
-const MAP_SIZE = 1200;
-const MAP_HALF = MAP_SIZE / 2;
+// ---------- World base ----------
+const MAP_SIZE = 1200, MAP_HALF = MAP_SIZE/2;
 
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE),
-  new THREE.MeshStandardMaterial({ color: 0xcfcfcf, roughness: 0.96, metalness: 0.0 })
+  new THREE.MeshStandardMaterial({ color:0xcfcfcf, roughness:0.96, metalness:0 })
 );
 ground.rotation.x = -Math.PI/2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Black grid lines (sidewalk gaps)
-const SLAB_SIZE = 6;
-const divisions = Math.max(2, Math.round(MAP_SIZE / SLAB_SIZE));
+// sidewalk grid lines
+const divisions = Math.max(2, Math.round(MAP_SIZE/6));
 const grid = new THREE.GridHelper(MAP_SIZE, divisions, 0x000000, 0x000000);
 grid.material.transparent = true;
 grid.material.opacity = 0.65;
-grid.position.y = 0.0005; // below roads
+grid.position.y = 0.0005;
 scene.add(grid);
 
 // ---------- Road / Crosswalk tiles ----------
-const ROAD_COLOR  = 0x2b2b2b; // dark asphalt
-const BASE_HEIGHT = 0.02;     // all roads/crosswalks sit above ground
+const ROAD_COLOR  = 0x2b2b2b; // asphalt
+const BASE_HEIGHT = 0.02;     // sit above ground
 const JOIN_EPS    = 1.0;      // small overlap to hide seams
+const ROAD_WIDTH  = 10, ROAD_LEN = 32, XWALK_LEN = 14;
 
 function createRoadTile({
-  length = 32, width = 10,
-  baseHeight = BASE_HEIGHT,
-  edgeWidth = 0.18,
-  dashLength = 2.2, dashWidth = 0.28
+  length=32, width=10, baseHeight=BASE_HEIGHT,
+  edgeWidth=0.18, dashLength=2.2, dashWidth=0.28
 } = {}) {
   const g = new THREE.Group();
 
   const asphalt = new THREE.Mesh(
     new THREE.PlaneGeometry(length, width),
-    new THREE.MeshStandardMaterial({ color: ROAD_COLOR, roughness: 0.98 })
+    new THREE.MeshStandardMaterial({ color:ROAD_COLOR, roughness:0.98 })
   );
   asphalt.rotation.x = -Math.PI/2;
   asphalt.position.y = baseHeight;
   asphalt.receiveShadow = true;
   g.add(asphalt);
 
-  const makeStrip = (L, W, color) => {
+  const makeStrip = (L,W,color) => {
     const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(L, W),
-      new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
+      new THREE.PlaneGeometry(L,W),
+      new THREE.MeshBasicMaterial({ color, side:THREE.DoubleSide })
     );
     m.rotation.x = -Math.PI/2;
     m.position.y = baseHeight + 0.001;
@@ -119,7 +117,7 @@ function createRoadTile({
   const right = makeStrip(length, edgeWidth, 0xFFC107); right.position.z = -edgeOffset;
   g.add(left, right);
 
-  const gap = length / 4;
+  const gap = length/4;
   for (const x of [-gap, 0, gap]) {
     const dash = makeStrip(dashLength, dashWidth, 0xFFFFFF);
     dash.position.x = x;
@@ -128,36 +126,26 @@ function createRoadTile({
   return g;
 }
 
-/* Crosswalk with SIDE APRONS
-   - Base crosswalk asphalt is slightly bigger (JOIN_EPS) to tuck under neighbors.
-   - Two APRONS extend beyond the left/right edges (±Z) by 'apronDepth'.
-   - Aprons sit 0.5 mm *below* road height to avoid any z-fighting while still
-     covering the visual gap. */
 function createCrosswalkTile({
-  length = 14, width = 10,
-  baseHeight = BASE_HEIGHT,
-  edgeMargin = 0.6, stubDepth = 0.9,
-  stripeThickness = 0.28, gap = 0.95,
-  apronDepth = 1.0, // how far the side asphalt sticks out towards the branches
-  apronBleedX = 0.2 // tiny extra in X so aprons are a touch wider than the crosswalk
+  length=14, width=10, baseHeight=BASE_HEIGHT,
+  edgeMargin=0.6, stubDepth=0.9, stripeThickness=0.28, gap=0.95,
+  apronDepth=0.55, apronBleedX=1.20
 } = {}) {
   const g = new THREE.Group();
 
-  // base asphalt (slightly oversized to tuck under)
   const base = new THREE.Mesh(
     new THREE.PlaneGeometry(length + 2*JOIN_EPS, width + 2*JOIN_EPS),
-    new THREE.MeshStandardMaterial({ color: ROAD_COLOR, roughness: 0.98 })
+    new THREE.MeshStandardMaterial({ color:ROAD_COLOR, roughness:0.98 })
   );
   base.rotation.x = -Math.PI/2;
   base.position.y = baseHeight;
   base.receiveShadow = true;
   g.add(base);
 
-  // crosswalk stripes
-  const makeStrip = (L, W) => {
+  const makeStrip = (L,W) => {
     const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(L, W),
-      new THREE.MeshBasicMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide })
+      new THREE.PlaneGeometry(L,W),
+      new THREE.MeshBasicMaterial({ color:0xFFFFFF, side:THREE.DoubleSide })
     );
     m.rotation.x = -Math.PI/2;
     m.position.y = baseHeight + 0.0015;
@@ -169,23 +157,23 @@ function createCrosswalkTile({
   const countX = Math.max(2, Math.floor((usableX + gap) / (stripeThickness + gap)));
   const countZ = Math.max(2, Math.floor((usableZ + gap) / (stripeThickness + gap)));
   const startX = -length/2 + edgeMargin + stripeThickness/2;
-  const startZ = -width /2 + edgeMargin + stripeThickness/2;
+  const startZ = -width/2  + edgeMargin + stripeThickness/2;
 
-  for (let i = 0; i < countX; i++) {
-    const x = startX + i * (stripeThickness + gap);
-    const top = makeStrip(stripeThickness, stubDepth);    top.position.set(x, base.position.y + 0.0015,  width/2 - stubDepth/2);
-    const bottom = makeStrip(stripeThickness, stubDepth); bottom.position.set(x, base.position.y + 0.0015, -width/2 + stubDepth/2);
-    g.add(top, bottom);
+  for (let i=0;i<countX;i++){
+    const x = startX + i*(stripeThickness+gap);
+    const top = makeStrip(stripeThickness, stubDepth);    top.position.set(x, base.position.y+0.0015,  width/2 - stubDepth/2);
+    const bot = makeStrip(stripeThickness, stubDepth);    bot.position.set(x, base.position.y+0.0015, -width/2 + stubDepth/2);
+    g.add(top, bot);
   }
-  for (let j = 0; j < countZ; j++) {
-    const z = startZ + j * (stripeThickness + gap);
-    const left  = makeStrip(stubDepth, stripeThickness); left.position.set(-length/2 + stubDepth/2, base.position.y + 0.0015, z);
-    const right = makeStrip(stubDepth, stripeThickness); right.position.set( length/2 - stubDepth/2, base.position.y + 0.0015, z);
+  for (let j=0;j<countZ;j++){
+    const z = startZ + j*(stripeThickness+gap);
+    const left  = makeStrip(stubDepth, stripeThickness);  left.position.set(-length/2 + stubDepth/2, base.position.y+0.0015, z);
+    const right = makeStrip(stubDepth, stripeThickness);  right.position.set( length/2 - stubDepth/2, base.position.y+0.0015, z);
     g.add(left, right);
   }
 
-  // --------- NEW: side asphalt aprons (underlap the branch roads) ---------
-  const apronY = baseHeight - 0.0005; // a half millimeter below to avoid z-fighting
+  // side aprons
+  const apronY = baseHeight - 0.0005;
   const apronX = length + 2*JOIN_EPS + 2*apronBleedX;
   const apronGeo = new THREE.PlaneGeometry(apronX, apronDepth);
   const apronMat = new THREE.MeshStandardMaterial({ color: ROAD_COLOR, roughness: 0.98 });
@@ -193,64 +181,356 @@ function createCrosswalkTile({
   const apronTop = new THREE.Mesh(apronGeo, apronMat);
   apronTop.rotation.x = -Math.PI/2;
   apronTop.position.set(0, apronY,  width/2 + apronDepth/2);
+
   const apronBot = apronTop.clone();
   apronBot.position.z = -width/2 - apronDepth/2;
 
   g.add(apronTop, apronBot);
-  // ------------------------------------------------------------------------
-
   return g;
+}
+
+// ---------- Street lamp system ----------
+const streetLights = [];
+const streetBulbs  = [];
+let streetLightsOn = false;
+
+function createStreetLamp({ side="left", x=0, z=0 }) {
+  const sideSign = side === "left" ? +1 : -1;
+  const g = new THREE.Group();
+
+  const teal = 0x17a08f;
+  const poleMat  = new THREE.MeshStandardMaterial({ color:teal, roughness:0.9, metalness:0.05 });
+  const shadeMat = new THREE.MeshStandardMaterial({ color:teal, roughness:0.8, metalness:0.1 });
+  const bulbMat  = new THREE.MeshStandardMaterial({ color:0xffffff, emissive:0xffd45a, emissiveIntensity:0.35 });
+
+  const H=5.2, r=0.07, baseR=0.14, baseH=0.25;
+  const inward = -sideSign;
+
+  const pts = [
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, H*0.6, 0),
+    new THREE.Vector3(0, H*1.00, inward*0.5),
+    new THREE.Vector3(0, H*1.05, inward*1.3),
+    new THREE.Vector3(0, H*0.85, inward*1.7)
+  ];
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.0);
+  const arm = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, r, 10, false), poleMat);
+  arm.castShadow = arm.receiveShadow = true;
+  g.add(arm);
+
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(baseR, baseR, baseH, 18), poleMat);
+  foot.position.y = baseH/2;
+  foot.castShadow = foot.receiveShadow = true;
+  g.add(foot);
+
+  const headPos = curve.getPoint(0.98);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 12), bulbMat);
+  bulb.position.copy(headPos).add(new THREE.Vector3(0, -0.12, 0));
+  bulb.castShadow = false; bulb.receiveShadow = false;
+  g.add(bulb);
+
+  const shade = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.5, 18), shadeMat);
+  shade.rotation.x = Math.PI;
+  shade.position.copy(headPos).add(new THREE.Vector3(0, 0.05, 0));
+  shade.castShadow = shade.receiveShadow = true;
+  g.add(shade);
+
+  const lamp = new THREE.PointLight(0xffd45a, 0.25, 9, 2);
+  lamp.position.copy(bulb.position);
+  lamp.castShadow = false;
+  g.add(lamp);
+
+  streetLights.push(lamp);
+  streetBulbs.push(bulb);
+
+  g.position.set(x,0,z);
+  return g;
+}
+function setStreetLights(on) {
+  streetLightsOn = on;
+  for (const L of streetLights) L.intensity = on ? 2.0 : 0.25;
+  for (const b of streetBulbs) b.material.emissiveIntensity = on ? 2.2 : 0.35;
 }
 
 // ---------- Car ----------
 const car = new THREE.Group();
 scene.add(car);
 
+/* ---------------- HEADLIGHTS: rig + controls ---------------- */
+const headlightRig = new THREE.Group();
+const headlightBulbs = [];
+const headlightSpots = [];
+let headlightsOn = false;
+
+let showBeams = true;
+const beamMeshes = [];
+
+function createHeadlightPair() {
+  const Y = 0.60, X = 1.65, Z = 0.48;
+
+  const bulbMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    emissive: 0xfff2cc,
+    emissiveIntensity: 0.20
+  });
+
+  function makeOne(zSign) {
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 14, 12), bulbMat);
+    bulb.position.set(X, Y, zSign * Z);
+    bulb.castShadow = false; bulb.receiveShadow = false;
+
+    const spot = new THREE.SpotLight(0xfff6d5, 0.0, 70, THREE.MathUtils.degToRad(26), 0.35, 1.4);
+    // PERF: headlight shadows off (road still looks great)
+    spot.castShadow = false;
+    spot.position.copy(bulb.position);
+
+    const target = new THREE.Object3D();
+    target.position.set(X + 16, Y - 0.40, zSign * Z);
+    headlightRig.add(target);
+    spot.target = target;
+
+    headlightRig.add(bulb, spot);
+    headlightBulbs.push(bulb);
+    headlightSpots.push(spot);
+
+    // visible beam (optional)
+    const coneLen = 7.5;
+    const coneRad = Math.tan(spot.angle) * coneLen;
+    const coneGeo = new THREE.ConeGeometry(coneRad, coneLen, 24, 1, true);
+    const coneMat = new THREE.MeshBasicMaterial({ color: 0xfff2cc, transparent: true, opacity: 0.09, depthWrite: false });
+    const cone = new THREE.Mesh(coneGeo, coneMat);
+    cone.position.copy(bulb.position);
+    cone.rotation.z = Math.PI / 2;
+    cone.rotateX(-0.40);
+    headlightRig.add(cone);
+    beamMeshes.push(cone);
+  }
+
+  makeOne(+1);
+  makeOne(-1);
+}
+function setHeadlights(on) {
+  headlightsOn = on;
+  for (const s of headlightSpots) s.intensity = on ? 8.5 : 0.0;
+  for (const b of headlightBulbs) b.material.emissiveIntensity = on ? 1.8 : 0.20;
+  for (const mesh of beamMeshes) mesh.visible = on && showBeams;
+}
+// -------------------------------------------------------------
+
+// Load car
 {
   const mtl = new MTLLoader();
   mtl.setPath(CAR_ASSETS);
   mtl.setResourcePath(CAR_ASSETS);
-  mtl.load(CAR_MTL, (materials) => {
+  mtl.load(CAR_MTL, (materials)=>{
     materials.preload();
     const objLoader = new OBJLoader();
     objLoader.setMaterials(materials);
     objLoader.setPath(CAR_ASSETS);
-    objLoader.load(CAR_OBJ, (obj) => {
-      obj.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace; } });
-      obj.rotation.y = Math.PI/2;
+    objLoader.load(CAR_OBJ, (obj)=>{
+      obj.traverse(o=>{
+        if(o.isMesh){
+          o.castShadow = o.receiveShadow = true;
+          if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+        }
+      });
+      obj.rotation.y = Math.PI/2; // face +X
       car.add(obj);
     });
-  }, undefined, () => {
+  }, undefined, ()=>{
     const objLoader = new OBJLoader();
     objLoader.setPath(CAR_ASSETS);
-    objLoader.load(CAR_OBJ, (obj) => {
-      obj.traverse(o => { if (o.isMesh) { o.material = new THREE.MeshStandardMaterial({ color: 0xaa0000 }); o.castShadow = o.receiveShadow = true; }});
+    objLoader.load(CAR_OBJ, (obj)=>{
+      obj.traverse(o=>{
+        if(o.isMesh){
+          o.material = new THREE.MeshStandardMaterial({ color:0xaa0000 });
+          o.castShadow = o.receiveShadow = true;
+        }
+      });
       obj.rotation.y = Math.PI/2;
       car.add(obj);
     });
   });
 }
+createHeadlightPair();
+car.add(headlightRig);
+setHeadlights(false);
 
-// ---------- Grid generation ----------
-const ROAD_WIDTH = 10;
-const ROAD_LEN   = 32;
-const XWALK_LEN  = 14;
-const PERIOD     = 3*ROAD_LEN + XWALK_LEN;
+/* ===================== BUILDINGS (materials + factory) ====================== */
+function makeFacadeTexture({w=1024, h=1024, wall='#909090', win='#F2C20E', door='#8B5A2B'}={}) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+
+  // wall
+  g.fillStyle = wall; g.fillRect(0,0,w,h);
+
+  function rrect(x,y,ww,hh,r){
+    g.beginPath();
+    g.moveTo(x+r,y);
+    g.arcTo(x+ww,y,x+ww,y+hh,r);
+    g.arcTo(x+ww,y+hh,x,y+hh,r);
+    g.arcTo(x,y+hh,x,y,r);
+    g.arcTo(x,y,x+ww,y,r);
+    g.closePath();
+  }
+
+  // grid of windows (3x4)
+  const marginX = 90, marginTop = 100, marginBottom = 240;
+  const cols = 3, rows = 4;
+  const gapX = (w - 2*marginX) / (cols + 0.5);
+  const winSize = Math.min(160, gapX*0.8);
+  const gapY = (h - marginTop - marginBottom) / (rows - 1);
+
+  g.fillStyle = win;
+  for (let r=0; r<rows; r++){
+    for (let cix=0; cix<cols; cix++){
+      const x = marginX + cix*gapX + (gapX - winSize)*0.5;
+      const y = marginTop + r*gapY - winSize*0.5;
+      rrect(x,y,winSize,winSize,24);
+      g.fill();
+    }
+  }
+
+  // door centered bottom
+  const doorW = 260, doorH = 260, doorR = 26;
+  const dx = (w - doorW)/2, dy = h - doorH - 60;
+  g.fillStyle = door;
+  rrect(dx,dy,doorW,doorH,doorR);
+  g.fill();
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+  return tex;
+}
+const SHARED_FACADE_TEX = makeFacadeTexture();
+
+// Material sets for LOD
+const FACADE_STD  = new THREE.MeshStandardMaterial({ map: SHARED_FACADE_TEX, roughness: 0.95, metalness: 0.0 });
+const FACADE_BASIC= new THREE.MeshBasicMaterial({ map: SHARED_FACADE_TEX }); // unlit
+const ROOF_STD    = new THREE.MeshStandardMaterial({ color: 0x8f8f8f, roughness: 0.98, metalness: 0.0 });
+const BOTTOM_STD  = new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 1.0, metalness: 0.0 });
+
+function createBuilding({width=12, depth=14, height=18}={}){
+  const geom = new THREE.BoxGeometry(width, height, depth);
+  const mats = [
+    FACADE_STD, // +x
+    FACADE_STD, // -x
+    ROOF_STD,   // +y (roof)
+    BOTTOM_STD, // -y
+    FACADE_STD, // +z
+    FACADE_STD  // -z
+  ];
+  const m = new THREE.Mesh(geom, mats);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  m.position.y = height/2;
+  return m;
+}
+
+/* ===================== STREAMING + LOD ====================== */
+// Record straight road segments; stream building pairs near car.
+const roadSegments = []; // {x, z, isX}
+function rememberSegment(x,z,isX){ roadSegments.push({x,z,isX}); }
+
+const ACTIVE_RADIUS = 180;  // meters-ish in world units (keep screen similar)
+const HYST = 30;            // hysteresis to avoid flicker
+const SIDEWALK_CLEAR = 14.0; // building center offset from road center minus half road
+
+const active = new Map();   // key -> {b1,b2}
+const pool  = [];           // recycled pairs
+function segKey(s){ return `${s.isX?'X':'Z'}:${s.x|0}:${s.z|0}`; }
+
+function spawnPair(s){
+  const pair = pool.pop() ?? {
+    b1: createBuilding({ width:14, depth:16, height:22 }),
+    b2: createBuilding({ width:12, depth:14, height:18 })
+  };
+  const off = ROAD_WIDTH/2 + SIDEWALK_CLEAR;
+  if (s.isX){
+    pair.b1.position.set(s.x, pair.b1.position.y, s.z + off);
+    pair.b2.position.set(s.x + 10, pair.b2.position.y, s.z - off);
+  } else {
+    pair.b1.position.set(s.x + off, pair.b1.position.y, s.z);
+    pair.b2.position.set(s.x - off, pair.b2.position.y, s.z + 10);
+  }
+  // initial LOD + shadow decision based on distance
+  const d = Math.hypot(car.position.x - s.x, car.position.z - s.z);
+  applyLOD(pair, d);
+
+  scene.add(pair.b1, pair.b2);
+  active.set(segKey(s), pair);
+}
+function despawnPair(key){
+  const pair = active.get(key);
+  if (!pair) return;
+  scene.remove(pair.b1, pair.b2);
+  // park in pool (materials/textures are shared; do NOT dispose)
+  pool.push(pair);
+  active.delete(key);
+}
+
+// Simple LOD tiers: near/mid/far
+function applyLOD(pair, dist){
+  if (dist < 90){ // NEAR: standard material + cast shadows
+    [pair.b1, pair.b2].forEach(m => {
+      const mats = m.material;
+      mats[0]=mats[1]=mats[4]=mats[5]=FACADE_STD;
+      m.castShadow = true;
+    });
+  } else if (dist < 150){ // MID: no casting, still lit
+    [pair.b1, pair.b2].forEach(m => {
+      const mats = m.material;
+      mats[0]=mats[1]=mats[4]=mats[5]=FACADE_STD;
+      m.castShadow = false;
+    });
+  } else { // FAR: unlit basic (very cheap), no casting
+    [pair.b1, pair.b2].forEach(m => {
+      const mats = m.material;
+      mats[0]=mats[1]=mats[4]=mats[5]=FACADE_BASIC;
+      m.castShadow = false;
+    });
+  }
+}
+
+let lastStreamCheck = 0;
+function updateStreaming(nowMs){
+  // throttle to ~4 Hz
+  if (nowMs - lastStreamCheck < 250) return;
+  lastStreamCheck = nowMs;
+
+  // Activate/deactivate by distance with hysteresis
+  for (const s of roadSegments){
+    const d = Math.hypot(car.position.x - s.x, car.position.z - s.z);
+    const key = segKey(s);
+    const isActive = active.has(key);
+    if (!isActive && d < ACTIVE_RADIUS) spawnPair(s);
+    if (isActive && d > ACTIVE_RADIUS + HYST) despawnPair(key);
+  }
+
+  // Update LOD for the currently active ones (cheap)
+  for (const [key, pair] of active){
+    const [, x, z] = key.split(':').map(Number);
+    const d = Math.hypot(car.position.x - x, car.position.z - z);
+    applyLOD(pair, d);
+  }
+}
+/* =================== END STREAMING + LOD ==================== */
+
+// ---------- Interconnected grid of roads ----------
+const PERIOD = 3*ROAD_LEN + XWALK_LEN;
 
 function makeCenters(min,max){
   const first = min + ROAD_LEN*3.5 + XWALK_LEN/2;
   const last  = max - (ROAD_LEN + XWALK_LEN/2);
-  const arr=[]; for (let c=first; c<=last+1e-6; c+=PERIOD) arr.push(c); return arr;
+  const arr=[]; for(let c=first; c<=last+1e-6; c+=PERIOD) arr.push(c); return arr;
 }
 const xs = makeCenters(-MAP_HALF, +MAP_HALF);
 const zs = makeCenters(-MAP_HALF, +MAP_HALF);
 
 function placeCrosswalk(x,z,rot90=false){
-  const m = createCrosswalkTile({
-    length: XWALK_LEN + 2*JOIN_EPS,
-    width:  ROAD_WIDTH + 2*JOIN_EPS,
-    baseHeight: BASE_HEIGHT
-  });
+  const m = createCrosswalkTile({ length:XWALK_LEN + 2*JOIN_EPS, width:ROAD_WIDTH + 2*JOIN_EPS, baseHeight:BASE_HEIGHT });
   m.position.set(x,0,z);
   if (rot90) m.rotation.y = Math.PI/2;
   scene.add(m);
@@ -258,24 +538,30 @@ function placeCrosswalk(x,z,rot90=false){
 function placeThreeRoadsX(x1,x2,z){
   const L = ROAD_LEN + JOIN_EPS;
   const start = x1 + (XWALK_LEN/2) + (ROAD_LEN/2) - JOIN_EPS/2;
-  for (let i=0;i<3;i++){
-    const r = createRoadTile({ length: L, width: ROAD_WIDTH, baseHeight: BASE_HEIGHT });
-    r.position.set(start + i*ROAD_LEN, 0, z);
+  for(let i=0;i<3;i++){
+    const cx = start + i*ROAD_LEN;
+    const r = createRoadTile({ length:L, width:ROAD_WIDTH, baseHeight:BASE_HEIGHT });
+    r.position.set(cx, 0, z);
     scene.add(r);
+    // record segment (isX = true) for streaming buildings later
+    rememberSegment(cx, z, true);
   }
 }
 function placeThreeRoadsZ(z1,z2,x){
   const L = ROAD_LEN + JOIN_EPS;
   const start = z1 + (XWALK_LEN/2) + (ROAD_LEN/2) - JOIN_EPS/2;
-  for (let i=0;i<3;i++){
-    const r = createRoadTile({ length: L, width: ROAD_WIDTH, baseHeight: BASE_HEIGHT });
+  for(let i=0;i<3;i++){
+    const cz = start + i*ROAD_LEN;
+    const r = createRoadTile({ length:L, width:ROAD_WIDTH, baseHeight:BASE_HEIGHT });
     r.rotation.y = Math.PI/2;
-    r.position.set(x, 0, start + i*ROAD_LEN);
+    r.position.set(x, 0, cz);
     scene.add(r);
+    // record segment (isX = false)
+    rememberSegment(x, cz, false);
   }
 }
 
-// rows & columns
+// lay out grid
 for (const z of zs){
   xs.forEach(x=>placeCrosswalk(x,z));
   for (let i=0;i<xs.length-1;i++) placeThreeRoadsX(xs[i], xs[i+1], z);
@@ -284,66 +570,101 @@ for (const x of xs){
   for (let j=0;j<zs.length-1;j++) placeThreeRoadsZ(zs[j], zs[j+1], x);
 }
 
-// edge extension: one straight segment from borders (with overlap)
+// extend to near edges (also record segments)
 for (const z of zs){
   const firstX=xs[0], lastX=xs.at(-1);
   let cx=firstX-(XWALK_LEN/2)-(ROAD_LEN/2) + JOIN_EPS/2;
-  for(let i=0;i<3;i++){ const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT}); r.position.set(cx - i*ROAD_LEN,0,z); scene.add(r); }
+  for(let i=0;i<3;i++){
+    const x = cx - i*ROAD_LEN;
+    const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT});
+    r.position.set(x,0,z); scene.add(r);
+    rememberSegment(x, z, true);
+  }
   cx=lastX+(XWALK_LEN/2)+(ROAD_LEN/2) - JOIN_EPS/2;
-  for(let i=0;i<3;i++){ const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT}); r.position.set(cx + i*ROAD_LEN,0,z); scene.add(r); }
+  for(let i=0;i<3;i++){
+    const x = cx + i*ROAD_LEN;
+    const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT});
+    r.position.set(x,0,z); scene.add(r);
+    rememberSegment(x, z, true);
+  }
 }
 for (const x of xs){
   const firstZ=zs[0], lastZ=zs.at(-1);
   let cz=firstZ-(XWALK_LEN/2)-(ROAD_LEN/2) + JOIN_EPS/2;
-  for(let i=0;i<3;i++){ const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT}); r.rotation.y=Math.PI/2; r.position.set(x,0,cz - i*ROAD_LEN); scene.add(r); }
+  for(let i=0;i<3;i++){
+    const z = cz - i*ROAD_LEN;
+    const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT});
+    r.rotation.y=Math.PI/2; r.position.set(x,0,z); scene.add(r);
+    rememberSegment(x, z, false);
+  }
   cz=lastZ+(XWALK_LEN/2)+(ROAD_LEN/2) - JOIN_EPS/2;
-  for(let i=0;i<3;i++){ const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT}); r.rotation.y=Math.PI/2; r.position.set(x,0,cz + i*ROAD_LEN); scene.add(r); }
+  for(let i=0;i<3;i++){
+    const z = cz + i*ROAD_LEN;
+    const r=createRoadTile({length:ROAD_LEN+JOIN_EPS,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT});
+    r.rotation.y=Math.PI/2; r.position.set(x,0,z); scene.add(r);
+    rememberSegment(x, z, false);
+  }
 }
 
-// ---------- Spawn ----------
-const spawnZ = zs[Math.floor(zs.length / 2)];
+// ---------- Spawn (car) ----------
+const spawnZ = zs[Math.floor(zs.length/2)];
 const firstRoadStartX = (-MAP_HALF) + ROAD_LEN;
-const carStartX = firstRoadStartX - 0.4 * ROAD_LEN;
+const carStartX = firstRoadStartX - 0.4*ROAD_LEN;
 let firstPerson = true;
 let heading = 0;
 
 car.position.set(carStartX, 0, spawnZ);
 car.rotation.y = heading;
 
+// ---------- Street lamps near start ----------
+{
+  const offsetX = 3.0;
+  const sideGap = ROAD_WIDTH/2 + 1.6;
+  const leftLamp  = createStreetLamp({ side:"left",  x:carStartX + offsetX, z:spawnZ + sideGap });
+  const rightLamp = createStreetLamp({ side:"right", x:carStartX + offsetX, z:spawnZ - sideGap });
+  scene.add(leftLamp, rightLamp);
+  setStreetLights(false);
+}
+
 // ---------- Warehouse behind the car ----------
 function loadOBJ(path, obj){ return new Promise((res,rej)=> new OBJLoader().setPath(path).load(obj,res,undefined,rej)); }
 const WAREHOUSE_DISTANCE_BEHIND = 40, WAREHOUSE_TARGET_LONGEST = 60;
 
 loadOBJ(WH_PATH, WH_OBJ).then((wh)=>{
-  wh.traverse(o=>{ if(o.isMesh){ o.castShadow=o.receiveShadow=true; if(!o.material) o.material = new THREE.MeshStandardMaterial({ color:0x888888, roughness:0.9 }); } });
+  wh.traverse(o=>{
+    if(o.isMesh){
+      o.castShadow = o.receiveShadow = true;
+      if(!o.material) o.material = new THREE.MeshStandardMaterial({ color:0x888888, roughness:0.9 });
+    }
+  });
   const box = new THREE.Box3().setFromObject(wh);
   const size = new THREE.Vector3(); box.getSize(size);
-  const s = WAREHOUSE_TARGET_LONGEST / Math.max(1e-6, Math.max(size.x, size.y, size.z));
+  const s = WAREHOUSE_TARGET_LONGEST / Math.max(1e-6, Math.max(size.x,size.y,size.z));
   wh.scale.setScalar(s);
   const box2 = new THREE.Box3().setFromObject(wh);
   wh.position.y = -box2.min.y;
   wh.position.x = carStartX - WAREHOUSE_DISTANCE_BEHIND;
   wh.position.z = spawnZ;
   scene.add(wh);
-}).catch(()=>console.warn('Could not load warehouse OBJ. Check WH_PATH/WH_OBJ.'));
+}).catch(()=>console.warn('Could not load warehouse OBJ.'));
 
 // ---------- Controls & movement ----------
 const keys = new Set();
-addEventListener('keydown', e => { if (['KeyW','KeyA','KeyS','KeyD','KeyC'].includes(e.code)) e.preventDefault(); keys.add(e.code); });
+addEventListener('keydown', e => { if (['KeyW','KeyA','KeyS','KeyD','KeyC','KeyL','KeyN','KeyH'].includes(e.code)) e.preventDefault(); keys.add(e.code); });
 addEventListener('keyup',   e => keys.delete(e.code));
 
 let speed = 0, wheelAngle = 0;
 const MAX_WHEEL_ANGLE = Math.PI/2;
-const params = { accel: 8.0, brake: 12.0, reverseAccel: 6.0, maxFwd: 14.0, maxRev: 6.0, friction: 3.5, steerRate: 1.8, minSteerFactor: 0.35 };
-const chaseOffset = new THREE.Vector3(-6.5, 3.0, 0.0);
+const params = { accel:8.0, brake:12.0, reverseAccel:6.0, maxFwd:14.0, maxRev:6.0, friction:3.5, steerRate:1.8, minSteerFactor:0.35 };
+const chaseOffset = new THREE.Vector3(-6.5,3.0,0.0);
 const camTarget = new THREE.Vector3();
-const FP_EYE_OFFSET = new THREE.Vector3(0.05, 1.55, 0.12);
+const FP_EYE_OFFSET = new THREE.Vector3(0.05,1.55,0.12);
 const FP_LOOK_AHEAD = 20, FP_LOOK_UP = 0.10;
 
-function update(dt) {
+function update(dt){
   if (keys.has('KeyW')) speed += params.accel * dt;
-  else if (keys.has('KeyS')) speed += (speed > 0 ? -params.brake : -params.reverseAccel) * dt;
-  else { const s = Math.sign(speed); speed -= s * params.friction * dt; if (Math.sign(speed) !== s) speed = 0; }
+  else if (keys.has('KeyS')) speed += (speed>0 ? -params.brake : -params.reverseAccel) * dt;
+  else { const s = Math.sign(speed); speed -= s*params.friction*dt; if (Math.sign(speed)!==s) speed = 0; }
   speed = THREE.MathUtils.clamp(speed, -params.maxRev, params.maxFwd);
 
   let steer = 0; if (keys.has('KeyA')) steer += 1; if (keys.has('KeyD')) steer -= 1;
@@ -351,18 +672,44 @@ function update(dt) {
   heading += params.steerRate * steerFactor * steer * dt;
 
   const forward = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), heading);
-  car.position.addScaledVector(forward, speed * dt);
+  car.position.addScaledVector(forward, speed*dt);
   car.rotation.set(0, heading, 0);
 
   const targetWheel = steer * MAX_WHEEL_ANGLE;
   wheelAngle = THREE.MathUtils.damp(wheelAngle, targetWheel, 12, dt);
 
   if (keys.has('KeyC')) { firstPerson = !firstPerson; keys.delete('KeyC'); }
+  if (keys.has('KeyL')) { setStreetLights(!streetLightsOn); keys.delete('KeyL'); }
+  if (keys.has('KeyH')) { setHeadlights(!headlightsOn); keys.delete('KeyH'); }
+
+  // Day/Night toggle (auto headlights)
+  if (keys.has('KeyN')) {
+    keys.delete('KeyN');
+    const toNight = sun.intensity > 0.3;
+    if (toNight) {
+      sun.intensity = 0.04;
+      amb.intensity = 0.06;
+      renderer.toneMappingExposure = 1.15;
+      scene.background.set(0x04050a);
+      setStreetLights(true);
+      setHeadlights(true);
+    } else {
+      sun.intensity = 0.85;
+      amb.intensity = 0.45;
+      renderer.toneMappingExposure = 1.0;
+      scene.background.set(0x101018);
+      setStreetLights(false);
+      setHeadlights(false);
+    }
+  }
+
+  // streaming + LOD (throttled internally)
+  updateStreaming(performance.now());
+
   if (firstPerson) {
     const eye = FP_EYE_OFFSET.clone().applyAxisAngle(new THREE.Vector3(0,1,0), heading).add(car.position);
     camera.position.lerp(eye, 0.25);
-    camTarget.copy(eye).addScaledVector(forward, FP_LOOK_AHEAD);
-    camTarget.y += FP_LOOK_UP;
+    camTarget.copy(eye).addScaledVector(forward, FP_LOOK_AHEAD); camTarget.y += FP_LOOK_UP;
     camera.lookAt(camTarget);
   } else {
     const off = chaseOffset.clone().applyAxisAngle(new THREE.Vector3(0,1,0), heading);
@@ -373,19 +720,23 @@ function update(dt) {
 }
 
 let last = performance.now();
-function tick(now = performance.now()) {
-  const dt = Math.min(0.033, (now - last)/1000); last = now;
+function tick(now=performance.now()){
+  const dt = Math.min(0.033, (now-last)/1000); last = now;
   update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
 tick();
 
-addEventListener('resize', () => {
+addEventListener('resize', ()=>{
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+
+// After roads are laid out, seed initial buildings around the spawn
+// so the first view looks the same (no visible pop).
+requestAnimationFrame(()=> updateStreaming(performance.now()));
 </script>
 </body>
 </html>
