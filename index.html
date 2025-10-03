@@ -2,49 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Driving Grid • Obstacles + Enemy Agents + Health</title>
+  <title>Extraction • City Run</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     html, body { height:100%; margin:0; background:#111; overflow:hidden; }
-    #info { position:absolute; top:10px; left:10px; color:#eee; font:14px/1.3 system-ui, sans-serif; z-index:7; }
-    #minimap {
-      position: absolute;
-      left: 12px;
-      bottom: 12px;
-      width: 210px;
-      height: 210px;
-      border-radius: 50%;
-      background: #1c1e22;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(255,255,255,0.05);
-      z-index: 6;
-    }
 
-    /* Health bar HUD */
+    /* ===== HUD (hidden until Play) ===== */
+    #info { position:absolute; top:10px; left:10px; color:#eee; font:14px/1.3 system-ui, sans-serif; z-index:7; display:none; }
+    #minimap {
+      position: absolute; left: 12px; bottom: 12px; width: 210px; height: 210px;
+      border-radius: 50%; background: #1c1e22;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(255,255,255,0.05);
+      z-index: 6; display:none;
+    }
     #healthUI {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      width: 240px;
-      height: 18px;
-      z-index: 8;
-      font: 12px/1 system-ui, sans-serif;
-      color: #cfd6dc;
-      text-shadow: 0 1px 2px rgba(0,0,0,.6);
+      position: absolute; top: 12px; right: 12px; width: 240px; height: 18px; z-index: 8;
+      font: 12px/1 system-ui, sans-serif; color: #cfd6dc; text-shadow: 0 1px 2px rgba(0,0,0,.6); display:none;
     }
     #healthLabel { margin-bottom: 6px; opacity: .9; }
     #healthBar {
-      position: relative;
-      width: 100%; height: 12px;
-      background: rgba(255,255,255,0.08);
-      border-radius: 10px;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.07), 0 2px 6px rgba(0,0,0,.3);
-      overflow: hidden;
+      position: relative; width: 100%; height: 12px; background: rgba(255,255,255,0.08);
+      border-radius: 10px; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.07), 0 2px 6px rgba(0,0,0,.3); overflow: hidden;
     }
     #healthFill {
-      position: absolute; left: 0; top: 0; height: 100%;
-      width: 100%;
-      background: hsl(120, 78%, 45%); /* green -> will tween towards red via JS */
-      border-radius: inherit;
+      position: absolute; left: 0; top: 0; height: 100%; width: 100%;
+      background: hsl(120, 78%, 45%); border-radius: inherit;
       transition: width .15s ease, background-color .15s ease, filter .15s ease;
       filter: drop-shadow(0 0 4px rgba(0,0,0,.35));
     }
@@ -52,39 +34,57 @@
 
     /* Parcel + toast UI */
     .parcel {
-      position: fixed;
-      width: 28px; height: 28px;
-      background: #8b5a2b;
-      border: 2px solid #4e341a;
-      border-radius: 4px;
-      box-shadow: 0 6px 12px rgba(0,0,0,.4);
-      top: -40px;
-      left: calc(50% - 14px);
-      opacity: 1;
-      transform: translateY(0);
-      transition:
-        transform 1.4s cubic-bezier(.2,.7,.2,1),
-        opacity   1.4s linear;
-      z-index: 9999;
+      position: fixed; width: 28px; height: 28px; background: #8b5a2b; border: 2px solid #4e341a; border-radius: 4px;
+      box-shadow: 0 6px 12px rgba(0,0,0,.4); top: -40px; left: calc(50% - 14px);
+      opacity: 1; transform: translateY(0);
+      transition: transform 1.4s cubic-bezier(.2,.7,.2,1), opacity 1.4s linear; z-index: 9999;
     }
     #toast {
-      position: fixed;
-      top: 14%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.75);
-      color: #fff;
-      padding: 10px 14px;
-      border-radius: 10px;
-      font: 600 18px/1.3 system-ui, sans-serif;
-      letter-spacing: .2px;
-      box-shadow: 0 6px 18px rgba(0,0,0,.35);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .25s ease;
-      z-index: 10000;
+      position: fixed; top: 14%; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.75); color: #fff; padding: 10px 14px; border-radius: 10px;
+      font: 600 18px/1.3 system-ui, sans-serif; letter-spacing: .2px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.35); opacity: 0; pointer-events: none;
+      transition: opacity .25s ease; z-index: 10000;
     }
     #toast.show { opacity: 1; }
+
+    /* ===== Start Screen Overlay ===== */
+    #start-screen {
+      position: fixed; inset: 0; display: grid; place-items: center; z-index: 10001;
+      background: radial-gradient(1200px 600px at 50% 0%, #1b1b24 0%, #0d0d12 55%, #07070a 100%);
+    }
+    .menu-card {
+      width: min(680px, 92vw); padding: 32px 28px 28px; border-radius: 18px;
+      background: linear-gradient(180deg, #15151d 0%, #0f0f16 100%);
+      box-shadow: 0 35px 80px #000a, inset 0 1px 0 #ffffff0e, inset 0 0 0 1px #ffffff14;
+      text-align: center; color: #e9ebff;
+    }
+    .title {
+      margin: 0 0 18px; font: 800 64px/0.95 'Segoe UI', system-ui, -apple-system, sans-serif;
+      letter-spacing: .06em; text-shadow: 0 12px 40px #0008, 0 0 18px #7cf1ff26;
+    }
+    .menu { display: flex; flex-direction: column; gap: 14px; align-items: center; margin-top: 8px; }
+    .btn {
+      width: min(440px, 85vw); padding: 14px 18px; border-radius: 12px; border: none; cursor: pointer;
+      font: 700 18px/1 system-ui, sans-serif; letter-spacing: .02em;
+      background: #1f8fff; color: #fff;
+      box-shadow: 0 12px 24px #0b377c55, inset 0 0 0 1px #ffffff22;
+      transition: transform .08s ease, filter .08s ease, background .2s ease;
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+    .btn.secondary { background: #2a2a36; color: #dfe2ff; box-shadow: inset 0 0 0 1px #ffffff22; }
+    .btn.tertiary  { background: #22222c; color: #cfd2f5; box-shadow: inset 0 0 0 1px #ffffff22; }
+    .kbd { display:inline-block; padding:2px 6px; border-radius:6px; margin:0 2px; background:#00000066; color:#eaeaff; font:12px/1.4 monospace; border:1px solid #ffffff22; }
+
+    /* Modal */
+    #modal { position: fixed; inset: 0; display: none; place-items: center; z-index: 10002; background: linear-gradient(#0006,#000a); }
+    .modal-card {
+      width: min(820px, 92vw); max-height: min(80vh, 700px); overflow: auto; padding: 20px 22px;
+      border-radius: 16px; background: #14141c; color: #e9ebff; box-shadow: 0 20px 80px #000c;
+    }
+    .modal-card h2 { margin: 6px 0 10px; font: 700 28px/1.1 system-ui, sans-serif; }
+    .modal-actions { display:flex; justify-content:flex-end; margin-top:10px; }
+    .close { padding:10px 14px; background:#2a2a36; color:#e9ebff; border:none; border-radius:10px; cursor:pointer; }
   </style>
 
   <!-- Import map -->
@@ -96,6 +96,32 @@
   </script>
 </head>
 <body>
+<!-- ===== Start Screen ===== -->
+<div id="start-screen" aria-modal="true" role="dialog">
+  <div class="menu-card" role="document">
+    <h1 class="title">Extraction</h1>
+    <p style="margin:0 0 18px; color:#adb0c7;">A fast-paced delivery run. Avoid obstacles, outsmart pursuers, and make it in time.</p>
+    <div class="menu">
+      <button id="btn-play" class="btn" autofocus>Play</button>
+      <button id="btn-instructions" class="btn secondary">Instructions &amp; Controls</button>
+      <button id="btn-credits" class="btn tertiary">Credits</button>
+    </div>
+    <p style="margin:16px 0 0; color:#9aa0b5;">
+      Tip: <span class="kbd">WASD</span> to drive • <span class="kbd">C</span> camera • <span class="kbd">N</span> day/night •
+      <span class="kbd">H</span> headlights • <span class="kbd">L</span> street lamps
+    </p>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal">
+  <div class="modal-card" role="dialog" aria-labelledby="modal-title">
+    <h2 id="modal-title">Instructions</h2>
+    <div id="modal-content"></div>
+    <div class="modal-actions"><button id="btn-close" class="close">Close</button></div>
+  </div>
+</div>
+
 <div id="info">
   W/S = forward/back • A/D = steer • C = toggle 1st/3rd • L = lamps • N = day/night • H = headlights •
   R = replace placeholders • P = parcel drop • <b>B</b> = roadblock ahead • <b>E</b> = spawn pursuer
@@ -119,17 +145,111 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const WH_PATH = 'assets/50-ware-house/';
 const WH_OBJ  = 'ware house.obj';
 
-/* Vehicle (GLB) */
+/* Vehicles */
 const VEHICLE_PATH = 'assets/';
 const TRUCK_GLB    = 'Pickup Truck.glb';
+
+/* Pursuer: Anti-gravity drone (replaces police car) */
+const DRONE_CANDIDATES = [
+  'Anti-Gravity Drone.glb',
+  'Antigravity Drone.glb',
+  'Drone.glb',
+  'anti_gravity_drone.glb'
+];
 
 /* Buildings */
 const BLD_PATH  = 'assets/';
 const LARGE_GLB = 'Large Building.glb';
 const SMALL_GLB = 'Small Building.glb';
+
+/* Obstacles (roadblocks → rubbish model) */
+const RUBBISH_GLB = 'Rubbish.glb';
+
+/* Slowdown hazard (smashed glass) */
+const GLASS_GLB = 'Smashed Glass.glb';
+
+/* Street light model */
+const STREET_LIGHT_GLB = 'Street Light.glb';
+/* ---- Street-light tuning ---- */
+const STREET_LIGHT_TARGET_H = 9.5;   // meters tall (was ~5.5)
+const STREET_LIGHT_YAW_CORR  = -Math.PI;     // if the lamp's arm points the “wrong way”, try Math.PI/2 or -Math.PI/2
+const STREET_LIGHT_OVERHANG  = 0.9;   // meters to push the lamp along its arm toward road center (use negative to go the other way)
+
+/* ---- GLB street-light lighting ---- */
+const GLB_LAMP_ON_INTENSITY  = 8.0;   // night brightness
+const GLB_LAMP_OFF_INTENSITY = 0.0;   // day (off)
+const GLB_LAMP_RANGE         = 25;    // how far it lights the road
+const GLB_LAMP_DECAY         = 1.5;     // physically-based falloff
+const GLB_LAMP_LOCAL_FORWARD = 0.70;  // extra push toward the road from the pole (meters)
+const GLB_LAMP_LOCAL_DOWN    = 0.15;  // hang a little below the head (meters)
+const GLB_LAMP_BULB_DROP   = 0.80;  // how far the bulb hangs below the head (↑ to lower only the bulb)
+const GLB_LAMP_TARGET_DROP = 3.2;   // how far the light aims downward (↑ to aim lower)
+
+
+/* Goal flag */
+const GOAL_FLAG_GLB = 'Goal Flag.glb';
+
+/* Paver (ground) */
+const PAVER_GLB = 'flagstone paver.glb';
+
+
+
+// Keep references so we can turn them on/off with N
+let glbStreetLights = [];
+
+
+
+
 /* ----------------------------------------------------- */
 
-/* ===================== RENDERER (perf settings) ===================== */
+/* ===== Start screen wiring ===== */
+const startEl   = document.getElementById('start-screen');
+const modalEl   = document.getElementById('modal');
+const btnPlay   = document.getElementById('btn-play');
+const btnInstr  = document.getElementById('btn-instructions');
+const btnCreds  = document.getElementById('btn-credits');
+const btnClose  = document.getElementById('btn-close');
+const modalTitle   = document.getElementById('modal-title');
+const modalContent = document.getElementById('modal-content');
+
+const infoEl     = document.getElementById('info');
+const healthWrap = document.getElementById('healthUI');
+const minimapEl  = document.getElementById('minimap');
+
+let gameStarted = false;
+function openModal(title, html){ modalTitle.textContent = title; modalContent.innerHTML = html; modalEl.style.display = 'grid'; }
+function closeModal(){ modalEl.style.display = 'none'; }
+btnInstr.addEventListener('click', ()=>{
+  openModal('Instructions & Controls', `
+    <p>Drive through the city grid, avoid buildings/roadblocks, and evade pursuers.</p>
+    <ul>
+      <li><b>Move:</b> <span class="kbd">W</span> accelerate, <span class="kbd">S</span> brake/reverse</li>
+      <li><b>Steer:</b> <span class="kbd">A</span> / <span class="kbd">D</span></li>
+      <li><b>Camera:</b> <span class="kbd">C</span> (first/third person)</li>
+      <li><b>Lights:</b> <span class="kbd">H</span> headlights, <span class="kbd">L</span> street lamps</li>
+      <li><b>Day/Night:</b> <span class="kbd">N</span></li>
+      <li><b>Extras:</b> <span class="kbd">R</span> replace nearby placeholders, <span class="kbd">P</span> parcel drop, <span class="kbd">B</span> roadblock ahead, <span class="kbd">E</span> pursuer</li>
+    </ul>
+  `);
+});
+btnCreds.addEventListener('click', ()=>{
+  openModal('Credits', `<p>Prototype by Stephan Botha. Built with three.js. Assets from public 3D libraries.</p>`);
+});
+btnClose.addEventListener('click', closeModal);
+modalEl.addEventListener('click', (e)=>{ if (e.target === modalEl) closeModal(); });
+
+function startGame(){
+  if (gameStarted) return;
+  gameStarted = true;
+  startEl.style.display = 'none';
+  infoEl.style.display = 'block';
+  healthWrap.style.display = 'block';
+  minimapEl.style.display = 'block';
+}
+btnPlay.addEventListener('click', startGame);
+startEl.addEventListener('keydown', (e)=>{ if (e.code === 'Enter') startGame(); });
+
+/* ===================== RENDERER ===================== */
 const renderer = new THREE.WebGLRenderer({ antialias:false, powerPreference:'high-performance' });
 renderer.setSize(innerWidth, innerHeight);
 const START_DPR = Math.min(2, devicePixelRatio || 1);
@@ -148,38 +268,23 @@ const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.03, 200
 camera.position.set(0,6,12);
 scene.add(camera);
 
-const amb = new THREE.AmbientLight(0xffffff, 0.45);
-scene.add(amb);
+const amb = new THREE.AmbientLight(0xffffff, 0.45); scene.add(amb);
 
 const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-sun.position.set(25,35,10);
-sun.castShadow = true;
-sun.shadow.mapSize.set(512,512);
-scene.add(sun);
-
+sun.position.set(25,35,10); sun.castShadow = true; sun.shadow.mapSize.set(512,512);
 const SHADOW_HALF_EXTENT = 90;
-Object.assign(sun.shadow, {
-  camera: new THREE.OrthographicCamera(-SHADOW_HALF_EXTENT, SHADOW_HALF_EXTENT, SHADOW_HALF_EXTENT, -SHADOW_HALF_EXTENT, 0.5, 400)
-});
-scene.add(sun.shadow.camera);
+sun.shadow.camera = new THREE.OrthographicCamera(-SHADOW_HALF_EXTENT, SHADOW_HALF_EXTENT, SHADOW_HALF_EXTENT, -SHADOW_HALF_EXTENT, 0.5, 400);
+scene.add(sun); scene.add(sun.shadow.camera);
 
 /* ===================== WORLD BASE ===================== */
 const MAP_SIZE = 1200, MAP_HALF = MAP_SIZE/2;
 
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE),
-  new THREE.MeshLambertMaterial({ color:0xcfcfcf })
-);
-ground.rotation.x = -Math.PI/2;
-ground.receiveShadow = true;
-scene.add(ground);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE), new THREE.MeshLambertMaterial({ color:0xcfcfcf }));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
 
 const divisions = Math.max(2, Math.round(MAP_SIZE/6));
 const grid = new THREE.GridHelper(MAP_SIZE, divisions, 0x000000, 0x000000);
-grid.material.transparent = true;
-grid.material.opacity = 0.45;
-grid.position.y = 0.0005;
-scene.add(grid);
+grid.material.transparent = true; grid.material.opacity = 0.45; grid.position.y = 0.0005; scene.add(grid);
 
 /* ===================== ROAD / CROSSWALK TILES ===================== */
 const ROAD_COLOR  = 0x2b2b2b;
@@ -231,7 +336,7 @@ function createCrosswalkTile({
 }
 
 /* ===================== Street lamp system ===================== */
-const streetLights = [], streetBulbs = []; let streetLightsOn = false;
+const streetLights = [], streetBulbs = []; let streetLightsOn = true;
 function createStreetLamp({ side="left", x=0, z=0 }) {
   const sideSign = side === "left" ? +1 : -1;
   const g = new THREE.Group();
@@ -251,9 +356,20 @@ function createStreetLamp({ side="left", x=0, z=0 }) {
   const lamp=new THREE.PointLight(0xffd45a,0.25,9,2); lamp.position.copy(bulb.position); lamp.castShadow=false; g.add(lamp);
   streetLights.push(lamp); streetBulbs.push(bulb); g.position.set(x,0,z); return g;
 }
-function setStreetLights(on){ streetLightsOn=on; for(const L of streetLights)L.intensity=on?2.0:0.25; for(const b of streetBulbs)b.material.emissiveIntensity=on?2.2:0.35; }
 
-/* ===================== Car group + headlights ===================== */
+function setStreetLights(on){
+  streetLightsOn = on;
+
+  // legacy/procedural lamps
+  for (const L of streetLights) L.intensity = on ? 2.0 : 0.25;
+  for (const b of streetBulbs) b.material.emissiveIntensity = on ? 2.2 : 0.35;
+
+  // GLB street-lamp bulbs (the PointLights we attached)
+  for (const p of glbStreetLights) p.intensity = on ? GLB_LAMP_ON_INTENSITY : GLB_LAMP_OFF_INTENSITY;
+}
+
+
+/* ===================== Car + headlights ===================== */
 const car = new THREE.Group();
 scene.add(car);
 
@@ -276,10 +392,8 @@ function rebuildHeadlightsFromBox(box){
     bulb.position.set(frontX, y, zSign*zOff);
     const spot = new THREE.SpotLight(0xfff6d5, 0.0, 70, THREE.MathUtils.degToRad(26), 0.35, 1.4);
     spot.position.copy(bulb.position);
-    const target = new THREE.Object3D();
-    target.position.set(frontX + 16, y - 0.40, zSign*zOff);
-    headlightRig.add(target);
-    spot.target = target;
+    const target = new THREE.Object3D(); target.position.set(frontX + 16, y - 0.40, zSign*zOff);
+    headlightRig.add(target); spot.target = target;
     headlightRig.add(bulb, spot);
     headlightBulbs.push(bulb); headlightSpots.push(spot);
     const coneLen = 7.5, coneRad = Math.tan(spot.angle) * coneLen;
@@ -299,7 +413,7 @@ function setHeadlights(on){
   for(const mesh of beamMeshes) mesh.visible = on;
 }
 
-/* ===== Load Pickup Truck (GLB) and fit it ===== */
+/* ===== Load Pickup Truck (GLB) for the player ===== */
 {
   const loader = new GLTFLoader().setPath(VEHICLE_PATH);
   loader.load(TRUCK_GLB, (gltf)=>{
@@ -367,7 +481,7 @@ function makeBuildingClone(targetHeight=20, preferSmall=false){
   else if (haveSmall)          { src = SMALL_PREFAB; srcH = SMALL_H; }
   if (!src) {
     const h = targetHeight, w = 10, d = 10;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({ color:0x9a9a9a }));
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({ color:0x9a9a3a }));
     m.position.y = h/2; m.castShadow = m.receiveShadow = true; return m;
   }
   const g = src.clone(true); const s = targetHeight / srcH; g.scale.setScalar(s);
@@ -394,21 +508,6 @@ const ACTIVE_RADIUS = 180, HYST=30, SIDEWALK_CLEAR=14.0;
 const active = new Map(); const pool=[];
 function segKey(s){ return `${s.isX?'X':'Z'}:${s.x|0}:${s.z|0}`; }
 
-function isBoxMesh(m){ return m?.isMesh && m.geometry?.isBoxGeometry; }
-function upgradeMeshToGLB(oldMesh, targetHeight){
-  if (!LARGE_PREFAB && !SMALL_PREFAB) return oldMesh;
-  const repl = makeBuildingClone(targetHeight, false);
-  repl.position.copy(oldMesh.position); repl.rotation.y = oldMesh.rotation?.y || 0;
-  oldMesh.parent?.add(repl); oldMesh.parent?.remove(oldMesh);
-  repl.updateWorldMatrix(true,true);
-  repl.userData.aabb = makeAABBFor(repl);
-  return repl;
-}
-function upgradePairIfNeeded(pair){
-  if (!pair) return;
-  if (isBoxMesh(pair.b1)) pair.b1 = upgradeMeshToGLB(pair.b1, 22);
-  if (isBoxMesh(pair.b2)) pair.b2 = upgradeMeshToGLB(pair.b2, 18);
-}
 function setObjLit(obj, lit, cast){
   obj.traverse(o=>{
     if (o.isMesh) {
@@ -426,8 +525,8 @@ function spawnPair(s, preferSmall=false){
   let pair = pool.pop();
   if (!pair) pair = { b1: makeBuildingClone(22, preferSmall), b2: makeBuildingClone(18, preferSmall) };
   else {
-    if (isBoxMesh(pair.b1)) pair.b1 = makeBuildingClone(22, preferSmall);
-    if (isBoxMesh(pair.b2)) pair.b2 = makeBuildingClone(18, preferSmall);
+    pair.b1 = makeBuildingClone(22, preferSmall);
+    pair.b2 = makeBuildingClone(18, preferSmall);
   }
   const off = ROAD_WIDTH/2 + SIDEWALK_CLEAR;
   if (s.isX){ pair.b1.position.set(s.x,0,s.z+off); pair.b2.position.set(s.x+10,0,s.z-off); }
@@ -435,7 +534,6 @@ function spawnPair(s, preferSmall=false){
   pair.b1.rotation.y = (Math.PI/2) * (Math.random()*4|0);
   pair.b2.rotation.y = (Math.PI/2) * (Math.random()*4|0);
   pair.b1.updateWorldMatrix(true,true); pair.b2.updateWorldMatrix(true,true);
-  pair.b1.userData.aabb = makeAABBFor(pair.b1); pair.b2.userData.aabb = makeAABBFor(pair.b2);
   const d = Math.hypot(car.position.x - s.x, car.position.z - s.z); applyLOD(pair, d);
   scene.add(pair.b1, pair.b2); active.set(segKey(s), pair);
 }
@@ -479,27 +577,528 @@ function circleAABBResolve(cx,cz,r,aabb){
   return { x:(dx/dist)*pen, z:(dz/dist)*pen };
 }
 
-/* ===================== Obstacles (roadblocks) ===================== */
-const obstacles = []; // { mesh, aabb, center:{x,z} }
-function addRoadblockAt(x, z, isX = true) {
-  const width = ROAD_WIDTH + 2.0;   // along the road
-  const thickness = 0.6;            // across the road
-  const height = 0.9;
-  const mat = new THREE.MeshStandardMaterial({ color: 0xa33a3a, metalness: 0.1, roughness: 0.9 });
-  const geo = isX ? new THREE.BoxGeometry(width, height, thickness)
-                  : new THREE.BoxGeometry(thickness, height, width);
-  const block = new THREE.Mesh(geo, mat);
-  block.position.set(x, BASE_HEIGHT + height/2, z);
-  block.castShadow = block.receiveShadow = true;
-  scene.add(block);
-  const aabb = makeAABBFor(block);
-  obstacles.push({
-    mesh: block,
-    aabb,
-    center: { x: (aabb.minX + aabb.maxX) * 0.5, z: (aabb.minZ + aabb.maxZ) * 0.5 }
+/* ===================== Obstacles (roadblocks → rubbish model) ===================== */
+const obstacles = [];
+let RUBBISH_PREFAB = null;
+
+async function loadRubbishPrefab() {
+  return new Promise((resolve) => {
+    new GLTFLoader().setPath(VEHICLE_PATH).load(
+      RUBBISH_GLB,
+      (gltf) => {
+        const root = gltf.scene;
+        root.traverse(o => {
+          if (o.isMesh) {
+            o.castShadow = o.receiveShadow = true;
+            if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+          }
+        });
+
+        // Scale rubbish so it roughly spans a roadblock width
+        const box = new THREE.Box3().setFromObject(root);
+        const size = new THREE.Vector3(); box.getSize(size);
+        const targetWidth = Math.max(8, ROAD_WIDTH - 2); // tune to taste
+        const s = targetWidth / Math.max(1e-6, size.x);
+        root.scale.setScalar(s);
+
+        // Sit on the ground
+        const boxAfter = new THREE.Box3().setFromObject(root);
+        root.position.y = -boxAfter.min.y;
+
+        RUBBISH_PREFAB = root;
+        resolve(true);
+      },
+      undefined,
+      () => resolve(false) // if it fails, we’ll fall back to box geometry
+    );
   });
+}
+
+/* ===================== Smashed Glass (slowdown hazard) ===================== */
+let GLASS_PREFAB = null;
+const glassHazards = [];
+
+async function loadGlassPrefab() {
+  return new Promise((resolve) => {
+    new GLTFLoader().setPath(VEHICLE_PATH).load(
+      GLASS_GLB,
+      (gltf) => {
+        const root = gltf.scene;
+        root.traverse(o => {
+          if (o.isMesh) {
+            o.castShadow = false; // glass doesn’t cast shadow
+            o.receiveShadow = true;
+            if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+            o.material.transparent = true;
+            o.material.opacity = 0.85;
+          }
+        });
+
+        // scale glass patch to about road width
+        const box = new THREE.Box3().setFromObject(root);
+        const size = new THREE.Vector3(); box.getSize(size);
+        const targetW = ROAD_WIDTH * 0.9 * 0.5; //change this to change glass size
+        const s = targetW / Math.max(1e-6, size.x);
+        root.scale.setScalar(s);
+        root.position.y = -box.min.y + BASE_HEIGHT + 0.01;
+
+        GLASS_PREFAB = root;
+        resolve(true);
+      },
+      undefined,
+      () => resolve(false)
+    );
+  });
+}
+
+async function applyPaverToGround(groundMesh) {
+  // Compute city extents (for sensible repeat counts)
+  let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
+  for (const s of roadSegments) {
+    if (!s) continue;
+    if (s.x < minX) minX = s.x; if (s.x > maxX) maxX = s.x;
+    if (s.z < minZ) minZ = s.z; if (s.z > maxZ) maxZ = s.z;
+  }
+  if (!isFinite(minX)) { minX = -400; maxX = 400; minZ = -400; maxZ = 400; } // fallback
+  const worldW = (maxX - minX) + 200;  // margin beyond roads
+  const worldH = (maxZ - minZ) + 200;
+
+  // Load GLB once and grab its material maps
+  const gltf = await new Promise((res, rej) =>
+    new GLTFLoader().setPath(VEHICLE_PATH).load(PAVER_GLB, res, undefined, rej)
+  );
+
+  // Find a mesh with a PBR material
+  let srcMat = null;
+  gltf.scene.traverse(o => { if (!srcMat && o.isMesh && o.material) srcMat = o.material; });
+
+  // Extract maps (if present)
+  const colorMap     = srcMat?.map || null;
+  const normalMap    = srcMat?.normalMap || null;
+  const roughnessMap = srcMat?.roughnessMap || null;
+  const aoMap        = srcMat?.aoMap || null;
+
+  // Estimate one-tile size from GLB bounds (so repeats match scale)
+  let tileW = 2.0, tileH = 2.0;
+  const bbox = new THREE.Box3().setFromObject(gltf.scene);
+  if (!bbox.isEmpty()) {
+    const size = new THREE.Vector3(); bbox.getSize(size);
+    if (size.x > 0.05 && size.z > 0.05) { tileW = size.x; tileH = size.z; }
+  }
+
+  // Compute repeats so each GLB tile ~ its world size
+  const repX = Math.max(1, Math.round(worldW / tileW));
+  const repY = Math.max(1, Math.round(worldH / tileH));
+
+  // Make all maps repeat, correct color space for base color
+  [colorMap, normalMap, roughnessMap, aoMap].forEach(m => {
+    if (!m) return;
+    m.wrapS = m.wrapT = THREE.RepeatWrapping;
+    m.repeat.set(repX, repY);
+  });
+  if (colorMap) colorMap.colorSpace = THREE.SRGBColorSpace;
+
+  // Build new ground material
+  const groundMat = new THREE.MeshStandardMaterial({
+    map: colorMap || null,
+    normalMap: normalMap || null,
+    roughnessMap: roughnessMap || null,
+    aoMap: aoMap || null,
+    color: colorMap ? 0xffffff : 0x2a2a2a,
+    roughness: 0.95,
+    metalness: 0.0,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1
+  });
+
+  // Apply and drop the ground slightly to avoid z-fighting with roads/decals
+  groundMesh.material = groundMat;
+  groundMesh.position.y = BASE_HEIGHT - 0.02;
+}
+
+
+/* ===================== Street Lights (pair per ahead segment) ===================== */
+let STREET_LIGHT_PREFAB = null;
+let activeLampPair = null;   // { left, right, key }
+const LAMP_SIDE_GAP = ROAD_WIDTH/2 + 1.6;  // put lamps between road and buildings
+const LAMP_Y = BASE_HEIGHT;                // sit on the ground plane
+
+async function loadStreetLightPrefab() {
+  return new Promise((resolve) => {
+    new GLTFLoader().setPath(VEHICLE_PATH).load(
+      STREET_LIGHT_GLB,
+      (gltf) => {
+        const root = gltf.scene;
+        root.traverse(o => {
+          if (o.isMesh) {
+            o.castShadow = o.receiveShadow = true;
+            if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+          }
+        });
+
+        // scale to target height
+        const box = new THREE.Box3().setFromObject(root);
+        const size = new THREE.Vector3(); box.getSize(size);
+        const s = STREET_LIGHT_TARGET_H / Math.max(1e-6, size.y);
+        root.scale.setScalar(s);
+
+
+        // sit on ground
+        const box2 = new THREE.Box3().setFromObject(root);
+        root.position.y = -box2.min.y + LAMP_Y;
+
+        STREET_LIGHT_PREFAB = root;
+        resolve(true);
+      },
+      undefined,
+      () => resolve(false)
+    );
+  });
+}
+
+function orientLampTowardRoad(lamp, seg) {
+  // “Center of this road segment”
+  const center = new THREE.Vector3(seg.x, LAMP_Y, seg.z);
+
+  // Yaw so the lamp’s “forward” faces the center line
+  const dx = center.x - lamp.position.x;
+  const dz = center.z - lamp.position.z;
+  const yaw = Math.atan2(dz, dx);
+  lamp.rotation.set(0, yaw + STREET_LIGHT_YAW_CORR, 0);
+
+  // Nudge the whole lamp slightly along its local +X so the head hangs over the street
+  if (STREET_LIGHT_OVERHANG !== 0) {
+    const dir = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), lamp.rotation.y);
+    lamp.position.addScaledVector(dir, STREET_LIGHT_OVERHANG);
+  }
+}
+
+function attachBulbLight(lamp) {
+  // world box -> local size (avoid double-scaling)
+  const worldBox  = new THREE.Box3().setFromObject(lamp);
+  const worldSize = new THREE.Vector3(); worldBox.getSize(worldSize);
+  const localSize = worldSize.clone().divide(lamp.scale);
+
+  // Rig is anchored at the head height (don’t move this when lowering the bulb)
+  const rig = new THREE.Group();
+  rig.position.set(
+    GLB_LAMP_LOCAL_FORWARD,       // a bit toward the road
+    localSize.y * 0.92,           // at the head height
+    0
+  );
+
+  // Visible glowing bulb (this is what we lower)
+  const bulbMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 14, 12),
+    new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xffd45a,
+      emissiveIntensity: 1.3,
+      roughness: 0.35
+    })
+  );
+  bulbMesh.position.y = -GLB_LAMP_BULB_DROP; // ↓ only the bulb drops
+  rig.add(bulbMesh);
+
+  // Real light: downward spotlight
+  const spot = new THREE.SpotLight(
+    0xffd45a, GLB_LAMP_ON_INTENSITY, 18,
+    THREE.MathUtils.degToRad(55), 0.45, 2
+  );
+  spot.castShadow = false;
+
+  // Aim further down toward the road (independent of bulb drop)
+  const target = new THREE.Object3D();
+  target.position.set(0, -GLB_LAMP_TARGET_DROP, 1.0);
+  rig.add(target);
+  spot.target = target;
+
+  rig.add(spot);
+  lamp.add(rig);
+
+  glbStreetLights.push(spot);
+  return spot;
+}
+
+
+
+
+
+function spawnLampPairForSegment(seg) {
+  // remove existing pair if any
+  if (activeLampPair) {
+    scene.remove(activeLampPair.left, activeLampPair.right);
+    activeLampPair = null;
+  }
+
+  // Compute the two sidewalk positions for this straight segment
+  const leftPos  = new THREE.Vector3();
+  const rightPos = new THREE.Vector3();
+
+  if (seg.isX) {
+    // road runs along +X/-X → lamps sit along ±Z sides
+    leftPos.set(seg.x, LAMP_Y, seg.z + LAMP_SIDE_GAP);
+    rightPos.set(seg.x, LAMP_Y, seg.z - LAMP_SIDE_GAP);
+  } else {
+    // road runs along +Z/-Z → lamps sit along ±X sides
+    leftPos.set(seg.x + LAMP_SIDE_GAP, LAMP_Y, seg.z);
+    rightPos.set(seg.x - LAMP_SIDE_GAP, LAMP_Y, seg.z);
+  }
+
+  // === Use the legacy GREEN procedural lamp (with glowing bulb + point light)
+  const leftLamp  = createStreetLamp({ side: "left",  x: leftPos.x,  z: leftPos.z  });
+  const rightLamp = createStreetLamp({ side: "right", x: rightPos.x, z: rightPos.z });
+
+  // Add to scene and remember
+  scene.add(leftLamp, rightLamp);
+  activeLampPair = { left: leftLamp, right: rightLamp, key: segKey(seg) };
+
+  // Make sure intensity matches current day/night toggle
+  setStreetLights(streetLightsOn);
+}
+
+/** Choose the next straight road segment in front of the car and ensure lamps exist there. */
+function ensureAheadLampPair() {
+  // If we already spawned for the current target segment, do nothing
+  const fwd = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), heading);
+  const useX = Math.abs(fwd.x) >= Math.abs(fwd.z); // which axis dominates -> straight segment type
+  const maxAheadDist = ROAD_LEN * 1.5;
+
+  let best = null;
+  let bestProj = 0;
+
+  for (const s of roadSegments) {
+    if (useX !== s.isX) continue;
+
+    // vector from car to segment center
+    const vx = s.x - car.position.x;
+    const vz = s.z - car.position.z;
+    // projection along forward (must be > 0 to be "ahead")
+    const proj = vx*fwd.x + vz*fwd.z;
+    if (proj <= 0) continue;
+    if (proj > maxAheadDist) continue;
+
+    // ensure we're roughly on the same lateral line (within half road width + sidewalk clearance)
+    if (s.isX) {
+      if (Math.abs(s.z - car.position.z) > ROAD_WIDTH/2 + SIDEWALK_CLEAR) continue;
+    } else {
+      if (Math.abs(s.x - car.position.x) > ROAD_WIDTH/2 + SIDEWALK_CLEAR) continue;
+    }
+
+    if (!best || proj < bestProj) { best = s; bestProj = proj; }
+  }
+
+  if (!best) return;
+
+  const key = segKey(best);
+  if (activeLampPair?.key === key) return; // already spawned for this ahead segment
+
+  spawnLampPairForSegment(best);
+}
+
+
+/* ===================== Goal & illuminated trail ===================== */
+let GOAL_PREFAB = null;
+let goalNode = null;
+let goalLight = null;
+const trailGroup = new THREE.Group(); scene.add(trailGroup);
+const trailLights = [];
+
+const DEST_MIN_DIST = ROAD_LEN * 8;         // how far the goal must be from the player spawn
+const TRAIL_STEP = 2.4;                     // spacing between breadcrumbs (meters)
+const TRAIL_DISC_SIZE = 0.9;                // visual size of breadcrumb
+const TRAIL_LIGHT_INTENSITY = 0.7;          // each breadcrumb’s soft glow
+
+async function loadGoalPrefab() {
+  return new Promise((resolve) => {
+    new GLTFLoader().setPath(VEHICLE_PATH).load(
+      GOAL_FLAG_GLB,
+      (gltf) => {
+        const root = gltf.scene;
+        root.traverse(o=>{
+          if (o.isMesh) {
+            o.castShadow = o.receiveShadow = true;
+            if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+          }
+        });
+        // scale flag to a nice height (~2.6m)
+        const box = new THREE.Box3().setFromObject(root);
+        const size = new THREE.Vector3(); box.getSize(size);
+        const targetH = 2.6;
+        const s = targetH / Math.max(1e-6, size.y);
+        root.scale.setScalar(s);
+
+        // sit on ground plane
+        const box2 = new THREE.Box3().setFromObject(root);
+        root.position.y = -box2.min.y + BASE_HEIGHT;
+
+        GOAL_PREFAB = root;
+        resolve(true);
+      },
+      undefined,
+      () => resolve(false)
+    );
+  });
+}
+
+function nearestRoadCenter(pos){
+  let best = null, bestD2 = Infinity;
+  for (const s of roadSegments){
+    const dx = s.x - pos.x, dz = s.z - pos.z;
+    const d2 = dx*dx + dz*dz;
+    if (d2 < bestD2){ bestD2 = d2; best = s; }
+  }
+  return best;
+}
+
+function randomFarRoad(minDist){
+  const choices = [];
+  for (const s of roadSegments){
+    const dx = s.x - car.position.x, dz = s.z - car.position.z;
+    if (Math.hypot(dx, dz) >= minDist) choices.push(s);
+  }
+  if (!choices.length) return null;
+  return choices[Math.random()*choices.length | 0];
+}
+
+function clearTrail(){
+  // remove breadcrumbs + lights
+  for (const L of trailLights) scene.remove(L);
+  trailLights.length = 0;
+  while (trailGroup.children.length){
+    const c = trailGroup.children.pop();
+    if (c.geometry) c.geometry.dispose?.();
+    if (c.material) c.material.dispose?.();
+  }
+}
+
+function addTrailMarker(x, z) {
+  // glowing sprite disc only, no point light
+  const mat = new THREE.SpriteMaterial({
+    color: 0x66ccff,
+    transparent: true,
+    opacity: 0.8,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(TRAIL_DISC_SIZE, TRAIL_DISC_SIZE, TRAIL_DISC_SIZE);
+  sp.position.set(x, BASE_HEIGHT + 0.05, z);
+  trailGroup.add(sp);
+}
+
+
+function addTrailLine(x1, z1, x2, z2){
+  // march from (x1,z1) to (x2,z2) placing markers
+  const dx = x2 - x1, dz = z2 - z1;
+  const len = Math.hypot(dx, dz);
+  if (len < 1e-3) return;
+  const nx = dx / len, nz = dz / len;
+  for (let d = 0; d <= len; d += TRAIL_STEP){
+    addTrailMarker(x1 + nx*d, z1 + nz*d);
+  }
+}
+
+function buildOrthogonalPath(startSeg, targetSeg){
+  // Path = go along start row, then turn at a junction and go along column to the target.
+  // If they are already aligned on x or z, it becomes a single leg.
+  clearTrail();
+
+  const sx = startSeg.x, sz = startSeg.z;
+  const tx = targetSeg.x, tz = targetSeg.z;
+
+  // First leg: keep Z = start row, move X to target X (i.e., drive straight along the road)
+  if (Math.abs(tx - sx) > 1e-3){
+    addTrailLine(sx, sz, tx, sz);
+  }
+  // Second leg: keep X = target column, move Z to target Z
+  if (Math.abs(tz - sz) > 1e-3){
+    addTrailLine(tx, sz, tx, tz);
+  }
+}
+
+function placeGoalAt(seg){
+  // remove previous goal if any
+  if (goalNode) { scene.remove(goalNode); goalNode = null; }
+  if (goalLight){ scene.remove(goalLight); goalLight = null; }
+
+  // clone prefab
+  const root = GOAL_PREFAB ? GOAL_PREFAB.clone(true) :
+    new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.2, 18),
+                   new THREE.MeshStandardMaterial({ color:0xff3b3b, metalness:0.2, roughness:0.8 }));
+  root.position.set(seg.x, root.position.y, seg.z);
+  root.rotation.y = Math.PI * 0.5 * (Math.random()*4|0);
+  scene.add(root);
+  goalNode = root;
+
+  // beacon light
+  const L = new THREE.SpotLight(0xffe08a, 4.5, 26, THREE.MathUtils.degToRad(55), 0.45, 2.0);
+  L.position.set(seg.x, 6.2, seg.z);
+  const target = new THREE.Object3D(); target.position.set(seg.x, BASE_HEIGHT + 0.2, seg.z);
+  scene.add(target); L.target = target;
+  scene.add(L);
+  goalLight = L;
+}
+
+function spawnGoalAndTrail(){
+  // start at nearest road center to the car
+  const startSeg = nearestRoadCenter(car.position);
+  const targetSeg = randomFarRoad(DEST_MIN_DIST);
+  if (!startSeg || !targetSeg) return;
+
+  placeGoalAt(targetSeg);
+  buildOrthogonalPath(startSeg, targetSeg);
+}
+
+
+
+function addGlassAt(x, z) {
+  let mesh;
+  if (GLASS_PREFAB) {
+    mesh = GLASS_PREFAB.clone(true);
+    mesh.position.set(x, BASE_HEIGHT + 0.01, z);
+    mesh.rotation.y = (Math.PI/2) * (Math.random()*4|0);
+  } else {
+    // fallback plane
+    const geo = new THREE.PlaneGeometry(ROAD_WIDTH*0.9, ROAD_WIDTH*0.9);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x55ffff, opacity: 0.5, transparent: true, side: THREE.DoubleSide });
+    mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI/2;
+    mesh.position.set(x, BASE_HEIGHT + 0.01, z);
+  }
+  scene.add(mesh);
+  const aabb = makeAABBFor(mesh);
+  glassHazards.push({ mesh, aabb });
+  return mesh;
+}
+
+
+function addRoadblockAt(x, z, isX = true) {
+  let block;
+  if (RUBBISH_PREFAB) {
+    block = RUBBISH_PREFAB.clone(true);
+    block.position.set(x, 0, z);
+    // Optional subtle variety:
+    block.rotation.y = (Math.PI/2) * (Math.random()*4|0);
+    const s = THREE.MathUtils.lerp(0.9, 1.15, Math.random());
+    block.scale.multiplyScalar(s);
+  } else {
+    // Fallback simple box if model didn’t load
+    const width = ROAD_WIDTH + 2.0, thickness = 0.6, height = 0.9;
+    const mat = new THREE.MeshStandardMaterial({ color: 0xa33a3a, metalness: 0.1, roughness: 0.9 });
+    const geo = isX ? new THREE.BoxGeometry(width, height, thickness)
+                    : new THREE.BoxGeometry(thickness, height, width);
+    block = new THREE.Mesh(geo, mat);
+    block.position.set(x, BASE_HEIGHT + height/2, z);
+    block.castShadow = block.receiveShadow = true;
+  }
+
+  scene.add(block);
+  obstacles.push({ mesh:block, aabb: makeAABBFor(block), center: { x, z } });
   return block;
 }
+
 function spawnRoadblockAhead() {
   const forward = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), heading);
   const ahead = car.position.clone().addScaledVector(forward, 24);
@@ -507,66 +1106,181 @@ function spawnRoadblockAhead() {
   addRoadblockAt(ahead.x, ahead.z, xDominant);
 }
 
-/* Merge buildings + obstacles into collision set */
-function getNearbyAABBs(cx, cz, radius = 50) {
-  const out = [];
-  // Buildings
-  for (const [key, pair] of active) {
-    const parts = key.split(':');
-    const px = Number(parts[1]), pz = Number(parts[2]);
-    if ((cx - px)**2 + (cz - pz)**2 > radius*radius) continue;
-    if (pair.b1?.userData?.aabb) out.push(pair.b1.userData.aabb);
-    if (pair.b2?.userData?.aabb) out.push(pair.b2.userData.aabb);
+/* ===================== Drone prefab (for pursuers) ===================== */
+let DRONE_PREFAB = null;
+let DRONE_RADIUS = 0.9;
+
+async function loadDronePrefab() {
+  // Try candidate filenames in order
+  for (const name of DRONE_CANDIDATES) {
+    const ok = await new Promise((resolve) => {
+      new GLTFLoader().setPath(VEHICLE_PATH).load(
+        name,
+        (gltf) => {
+          const root = gltf.scene;
+          root.traverse(o => {
+            if (o.isMesh) {
+              o.castShadow = o.receiveShadow = true;
+              if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+              if (o.material && 'metalness' in o.material && 'roughness' in o.material) {
+                o.material.metalness = Math.min(0.6, o.material.metalness ?? 0.3);
+                o.material.roughness = Math.max(0.35, o.material.roughness ?? 0.6);
+              }
+            }
+          });
+
+          // Scale the drone so its longest dimension ~ 2.0
+          let box = new THREE.Box3().setFromObject(root);
+          const size = new THREE.Vector3(); box.getSize(size);
+          const longest = Math.max(size.x, size.y, size.z);
+          const targetLongest = 2.0;
+          const s = targetLongest / Math.max(1e-6, longest);
+          root.scale.setScalar(s);
+
+          box = new THREE.Box3().setFromObject(root);
+          // Set base to ground, we will offset up a bit to hover
+          root.position.y = -box.min.y;
+
+          // radius from plan view
+          DRONE_RADIUS = Math.max(0.6, Math.max(box.max.z - box.min.z, box.max.x - box.min.x) * 0.5 * 0.55);
+          DRONE_PREFAB = root;
+          resolve(true);
+        },
+        undefined,
+        () => resolve(false)
+      );
+    });
+    if (ok) return true;
   }
-  // Obstacles
-  for (const o of obstacles) {
-    const dx = cx - o.center.x, dz = cz - o.center.z;
-    if (dx*dx + dz*dz <= radius*radius) out.push(o.aabb);
-  }
-  return out;
+  console.warn('Drone GLB not found in assets/. Using fallback primitive.');
+  return false;
 }
 
-/* Generic circle collider resolver + car wrapper */
-function resolveCircleCollisions(pos, radius) {
-  for (let it=0; it<4; it++) {
-    const aabbs = getNearbyAABBs(pos.x, pos.z, 60);
-    let pushed = false;
-    for (const a of aabbs) {
-      const push = circleAABBResolve(pos.x, pos.z, radius, a);
-      if (push) { pos.x += push.x; pos.z += push.z; pushed = true; }
+/* ===================== Explosion FX ===================== */
+const activeExplosions = [];
+function spawnExplosion(pos) {
+  const count = 120;
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count*3);
+  const velocities = new Float32Array(count*3);
+  const lifetimes = new Float32Array(count);
+  for (let i=0;i<count;i++){
+    positions[3*i+0]=pos.x;
+    positions[3*i+1]=pos.y+0.6;
+    positions[3*i+2]=pos.z;
+    // random spherical velocity
+    const theta = Math.random()*Math.PI*2;
+    const phi = Math.acos(2*Math.random()-1);
+    const speed = 6.0 * (0.5 + Math.random());
+    velocities[3*i+0]= speed*Math.sin(phi)*Math.cos(theta);
+    velocities[3*i+1]= speed*Math.cos(phi)*0.8 + 1.5; // bias upward a bit
+    velocities[3*i+2]= speed*Math.sin(phi)*Math.sin(theta);
+    lifetimes[i] = 0;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  geo.setAttribute('velocity', new THREE.BufferAttribute(velocities,3));
+  geo.setAttribute('life', new THREE.BufferAttribute(lifetimes,1));
+
+  const mat = new THREE.PointsMaterial({
+    size: 0.12,
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    color: 0xffcc66
+  });
+  const points = new THREE.Points(geo, mat);
+  points.userData.birth = performance.now();
+  scene.add(points);
+  activeExplosions.push(points);
+  // auto-destroy after 900ms
+  setTimeout(()=>{
+    scene.remove(points);
+    points.geometry.dispose();
+    if (points.material.dispose) points.material.dispose();
+    const idx = activeExplosions.indexOf(points);
+    if (idx>=0) activeExplosions.splice(idx,1);
+  }, 900);
+}
+function updateExplosions(dt){
+  for (const p of activeExplosions){
+    const g = p.geometry;
+    const pos = g.getAttribute('position');
+    const vel = g.getAttribute('velocity');
+    const life = g.getAttribute('life');
+    for (let i=0;i<life.count;i++){
+      // simple Euler integration with slight drag + gravity
+      vel.array[3*i+0] *= 0.96;
+      vel.array[3*i+1] = vel.array[3*i+1]*0.96 - 9.8*dt*0.35;
+      vel.array[3*i+2] *= 0.96;
+      pos.array[3*i+0] += vel.array[3*i+0]*dt;
+      pos.array[3*i+1] += vel.array[3*i+1]*dt;
+      pos.array[3*i+2] += vel.array[3*i+2]*dt;
+      life.array[i] += dt;
     }
-    if (!pushed) break;
+    pos.needsUpdate = true;
+    // fade over time
+    const mat = p.material;
+    if (mat.opacity !== undefined) {
+      mat.opacity = Math.max(0, 0.95 - (performance.now()-p.userData.birth)/900);
+    }
   }
-  return pos;
 }
-function resolveCarCollisions(proposed) { return resolveCircleCollisions(proposed, CAR_RADIUS); }
 
-/* ===================== Pursuer agents (enemy cars) ===================== */
-const agents = []; // array of agent objects
-function spawnPursuer(x, z) {
-  const L = 3.0, H = 0.7, W = 1.6;
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(L, H, W),
-    new THREE.MeshStandardMaterial({ color: 0xD32F2F, metalness: 0.1, roughness: 0.6 })
-  );
-  mesh.position.set(x, H/2, z);
-  mesh.castShadow = mesh.receiveShadow = true;
-  scene.add(mesh);
+/* ===================== Pursuer agents (drones) ===================== */
+const agents = [];
+function spawnDrone(x, z) {
+  let node, radius = 0.9;
+  if (DRONE_PREFAB) {
+    node = DRONE_PREFAB.clone(true);
+    // Hover offset
+    const hoverBase = 0.8;
+    node.position.set(x, hoverBase, z);
+    radius = DRONE_RADIUS;
+  } else {
+    // Fallback: disc-like drone
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.9, 1.1, 0.28, 24, 1, false),
+      new THREE.MeshStandardMaterial({ color: 0x5469d4, metalness: 0.4, roughness: 0.5, emissive: 0x101838, emissiveIntensity: 0.2 })
+    );
+    mesh.position.set(x, 0.8, z);
+    mesh.castShadow = mesh.receiveShadow = true;
+    node = mesh;
+    radius = 0.9;
+  }
+
+  // Soft glow core
+  const glow = new THREE.PointLight(0x66ccff, 0.6, 10, 2);
+  glow.position.set(0, 0.0, 0);
+  node.add(glow);
+
+  node.castShadow = true;
+  scene.add(node);
+
   const agent = {
-    mesh,
+    mesh: node,
     vel: new THREE.Vector3(),
     maxSpeed: 11,
     maxAccel: 18,
-    radius: 0.9
+    radius,
+    isDrone: true,
+    hoverPhase: Math.random()*Math.PI*2
   };
   agents.push(agent);
   return agent;
 }
-function spawnPursuerBehind() {
+function spawnDroneBehind() {
   const back = car.position.clone().add(new THREE.Vector3(-20, 0, 0));
-  spawnPursuer(back.x, back.z);
+  spawnDrone(back.x, back.z);
 }
-// avoidance field from nearby AABBs
+function spawnDroneNearPlayer(minDist=12, maxDist=20){
+  const ang = Math.random()*Math.PI*2;
+  const r = THREE.MathUtils.lerp(minDist, maxDist, Math.random());
+  const x = car.position.x + Math.cos(ang)*r;
+  const z = car.position.z + Math.sin(ang)*r;
+  spawnDrone(x, z);
+}
+
 function avoidanceAccel(pos, maxAccel) {
   const aabbs = getNearbyAABBs(pos.x, pos.z, 40);
   const out = new THREE.Vector3();
@@ -590,8 +1304,11 @@ function updateAgents(dt) {
   const carForward = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), heading);
   const prediction = car.position.clone().addScaledVector(carForward, 4 + Math.abs(speed)*0.5);
 
-  for (const a of agents) {
-    const desired = prediction.clone().sub(a.mesh.position).setY(0);
+  for (let i=agents.length-1; i>=0; i--) {
+    const a = agents[i];
+
+    // Seek
+    const desired = prediction.clone().sub(a.mesh.position.clone().setY(car.position.y)).setY(0);
     const dist = desired.length();
     if (dist > 1e-6) desired.multiplyScalar(a.maxSpeed / dist);
 
@@ -601,84 +1318,75 @@ function updateAgents(dt) {
     a.vel.addScaledVector(steer, dt);
     const vl = a.vel.length(); if (vl > a.maxSpeed) a.vel.multiplyScalar(a.maxSpeed / vl);
 
-    const proposed = a.mesh.position.clone().addScaledVector(a.vel, dt);
-    const fixed = resolveCircleCollisions(proposed, a.radius);
-    a.mesh.position.copy(fixed);
+    const proposed2D = new THREE.Vector3(a.mesh.position.x, 0, a.mesh.position.z).addScaledVector(new THREE.Vector3(a.vel.x,0,a.vel.z), dt);
+    const fixed2D = resolveCircleCollisions(proposed2D, a.radius);
+    a.mesh.position.x = fixed2D.x;
+    a.mesh.position.z = fixed2D.z;
 
     if (a.vel.lengthSq() > 0.01) a.mesh.rotation.y = Math.atan2(a.vel.z, a.vel.x);
+
+    // Drone hover/bob
+    if (a.isDrone) {
+      a.hoverPhase += dt*2.5;
+      a.mesh.position.y = 0.8 + Math.sin(a.hoverPhase)*0.12;
+    }
   }
 }
 
-/* ========= Car ↔ Pursuer collisions + player damage ========= */
+/* ========= Car ↔ Drone collisions + player damage + explosion/respawn ========= */
 let health = 100;
 const DAMAGE_COOLDOWN_MS = 700;
 let nextDamageAt = 0;
-const healthUI = {
-  wrap: document.getElementById('healthUI'),
-  fill: document.getElementById('healthFill')
-};
-function setHealthBar(h){
-  h = Math.max(0, Math.min(100, h));
-  const hue = (h * 120) / 100; // 0=red..120=green
-  healthUI.fill.style.width = `${h}%`;
-  healthUI.fill.style.background = `hsl(${hue}, 78%, 45%)`;
-}
+const healthUI = { wrap: document.getElementById('healthUI'), fill: document.getElementById('healthFill') };
+function setHealthBar(h){ h = Math.max(0, Math.min(100, h)); const hue = (h * 120) / 100; healthUI.fill.style.width = `${h}%`; healthUI.fill.style.background = `hsl(${hue}, 78%, 45%)`; }
 setHealthBar(health);
-
-function flashDamage(){
-  healthUI.wrap.classList.add('hp-damage');
-  setTimeout(()=> healthUI.wrap.classList.remove('hp-damage'), 140);
-}
-function applyDamage(amount){
-  if (health <= 0) return;
-  health = Math.max(0, health - amount);
-  setHealthBar(health);
-  flashDamage();
-  if (health === 0) showToast('vehicle disabled!', 2500);
-}
-const tmpV = new THREE.Vector3();
+function flashDamage(){ healthUI.wrap.classList.add('hp-damage'); setTimeout(()=> healthUI.wrap.classList.remove('hp-damage'), 140); }
+function applyDamage(amount){ if (health<=0) return; health = Math.max(0, health - amount); setHealthBar(health); flashDamage(); if (health===0) showToast('vehicle disabled!', 2500); }
 let carVelVec = new THREE.Vector3();
+
+function removeAgent(agent){
+  const idx = agents.indexOf(agent);
+  if (idx >= 0) agents.splice(idx,1);
+  scene.remove(agent.mesh);
+}
 
 function handleCarAgentCollisions(dt){
   const now = performance.now();
-  for (const a of agents) {
+  for (let i=agents.length-1; i>=0; i--) {
+    const a = agents[i];
     const dx = car.position.x - a.mesh.position.x;
     const dz = car.position.z - a.mesh.position.z;
     const d2 = dx*dx + dz*dz;
-    const minDist = CAR_RADIUS + a.radius;
+    const minDist = 0.9 + a.radius;
 
     if (d2 < minDist*minDist) {
-      // normal
       let d = Math.sqrt(Math.max(d2, 1e-12));
       let nx = dx / d, nz = dz / d;
 
-      // separate both half the overlap
       const overlap = (minDist - d);
       car.position.x += nx * (overlap * 0.5);
       car.position.z += nz * (overlap * 0.5);
       a.mesh.position.x -= nx * (overlap * 0.5);
       a.mesh.position.z -= nz * (overlap * 0.5);
 
-      // simple velocity response: push enemy away and slow car a bit on impact
-      // agent push:
       a.vel.x -= nx * 6.5;
       a.vel.z -= nz * 6.5;
-      // car speed reduce along normal
-      const impactAlong = carVelVec.x * nx + carVelVec.z * nz; // signed
-      if (impactAlong > 0) {
-        // dampen car forward speed on impact
-        speed = Math.max(0, speed - Math.min(impactAlong, 4.0));
-      }
 
-      // damage (cooldown to avoid instant drain)
+      const impactAlong = carVelVec.x * nx + carVelVec.z * nz;
+      if (impactAlong > 0) speed = Math.max(0, speed - Math.min(impactAlong, 4.0));
+
       if (now >= nextDamageAt) {
-        // relative speed along normal
         const relNx = (carVelVec.x - a.vel.x) * nx + (carVelVec.z - a.vel.z) * nz;
         const relSpd = Math.abs(relNx);
-        const dmg = THREE.MathUtils.clamp(4 + relSpd * 0.9, 6, 18); // 6..18
+        const dmg = THREE.MathUtils.clamp(4 + relSpd * 0.9, 6, 18);
         applyDamage(dmg|0);
         nextDamageAt = now + DAMAGE_COOLDOWN_MS;
       }
+
+      // === Drone-specific: explode, remove, and respawn nearby ===
+      spawnExplosion(a.mesh.position.clone());
+      removeAgent(a);
+      spawnDroneNearPlayer(12, 20);
     }
   }
 }
@@ -718,15 +1426,7 @@ let heading = 0;
 car.position.set(carStartX, 0, spawnZ);
 car.rotation.y = heading;
 
-/* ===================== Street lamps near start ===================== */
-{
-  const offsetX = 3.0;
-  const sideGap = ROAD_WIDTH/2 + 1.6;
-  const leftLamp  = createStreetLamp({ side:"left",  x:carStartX + offsetX, z:spawnZ + sideGap });
-  const rightLamp = createStreetLamp({ side:"right", x:carStartX + offsetX, z:spawnZ - sideGap });
-  scene.add(leftLamp, rightLamp);
-  setStreetLights(false);
-}
+
 
 /* ===================== Warehouse behind the car ===================== */
 function loadOBJ(path, obj){ return new Promise((res,rej)=> new OBJLoader().setPath(path).load(obj,res,undefined,rej)); }
@@ -738,14 +1438,13 @@ loadOBJ(WH_PATH, WH_OBJ).then((wh)=>{
   const box2=new THREE.Box3().setFromObject(wh); wh.position.y = -box2.min.y; wh.position.x = carStartX - WAREHOUSE_DISTANCE_BEHIND; wh.position.z = spawnZ; scene.add(wh);
 }).catch(()=>console.warn('Could not load warehouse OBJ.'))  ;
 
-/* ===================== Minimap (perf-optimized) ===================== */
+/* ===================== Minimap ===================== */
 const mm = document.getElementById('minimap');
 const mmCtx = mm.getContext('2d', { alpha: true });
 function resizeMinimap(){ const dpr=Math.min(2, window.devicePixelRatio||1); const cssW=mm.clientWidth, cssH=mm.clientHeight; mm.width=Math.round(cssW*dpr); mm.height=Math.round(cssH*dpr); mmCtx.setTransform(dpr,0,0,dpr,0,0); }
 resizeMinimap(); addEventListener('resize', resizeMinimap);
 const MINIMAP_SCALE=1.8; const MINIMAP_RADIUS = ()=> Math.min(mm.clientWidth, mm.clientHeight)*0.5;
 let mmVisibleSegments=[]; let mmLastFilter=0; const MM_FILTER_HZ=150; const MM_DRAW_HZ=66; let mmLastDraw=0;
-
 function refreshVisibleSegments(){
   const now=performance.now(); if (now - mmLastFilter < MM_FILTER_HZ) return; mmLastFilter = now;
   const Rw=(MINIMAP_RADIUS()/MINIMAP_SCALE)+8; const cx=car.position.x, cz=car.position.z; const L=ROAD_LEN+JOIN_EPS;
@@ -783,26 +1482,83 @@ function dropParcel(){
   el.addEventListener('transitionend', ()=>{ el.remove(); showToast('parcel received, head to the destination', 3000); }, { once:true });
 }
 
+/* ===================== Helpers ===================== */
+function getNearbyAABBs(cx, cz, radius = 50) {
+  const out = [];
+  for (const [key, pair] of active) {
+    const parts = key.split(':');
+    const px = Number(parts[1]), pz = Number(parts[2]);
+    if ((cx - px)**2 + (cz - pz)**2 > radius*radius) continue;
+    const b1 = new THREE.Box3().setFromObject(pair.b1); out.push(box3ToAABB2D(b1));
+    const b2 = new THREE.Box3().setFromObject(pair.b2); out.push(box3ToAABB2D(b2));
+  }
+  for (const o of obstacles) {
+    const dx = cx - o.center.x, dz = cz - o.center.z;
+    if (dx*dx + dz*dz <= radius*radius) out.push(o.aabb);
+  }
+  return out;
+}
+function resolveCircleCollisions(pos, radius) {
+  for (let it=0; it<4; it++) {
+    const aabbs = getNearbyAABBs(pos.x, pos.z, 60);
+    let pushed = false;
+    for (const a of aabbs) {
+      const push = circleAABBResolve(pos.x, pos.z, radius, a);
+      if (push) { pos.x += push.x; pos.z += push.z; pushed = true; }
+    }
+    if (!pushed) break;
+  }
+  return pos;
+}
+function resolveCarCollisions(proposed) { return resolveCircleCollisions(proposed, 0.9); }
+
 /* ===================== Bootstrap flow ===================== */
 async function bootstrap(){
   const small = await loadGLB(BLD_PATH, SMALL_GLB);
   if (small) { SMALL_PREFAB=small.root; SMALL_H=small.height; }
 
+  // Load pursuer drone
+  await loadDronePrefab();
+
+  // Load rubbish obstacle model
+  await loadRubbishPrefab();
+
+    // Load glass hazard prefab
+  await loadGlassPrefab();
+
+    // Load street light prefab
+  await loadStreetLightPrefab();
+
+    // Load the goal flag model
+  await loadGoalPrefab();
+
+  // Create a destination & breadcrumb trail
+  spawnGoalAndTrail();
+  
+
+
+
+
+  // Seed some buildings nearby
   const initialRadius=200;
   for (const s of roadSegments){ const d=Math.hypot(car.position.x - s.x, car.position.z - s.z); if (d<initialRadius && !active.has(segKey(s))) spawnPair(s,true); }
 
+  // Load large building and enable streaming
   loadGLB(BLD_PATH, LARGE_GLB).then(res=>{
-    if (!res) return; LARGE_PREFAB=res.root; LARGE_H=res.height;
-    for (const [,pair] of active) upgradePairIfNeeded(pair);
+    if (res) { LARGE_PREFAB=res.root; LARGE_H=res.height; }
     streamingEnabled=true;
   }).catch(()=>{ streamingEnabled=true; });
-  if (!small) streamingEnabled=true;
 
-  /* Demo: a couple of obstacles ahead + one pursuer behind (remove if not needed) */
+  // Demo obstacles + one drone
   addRoadblockAt(carStartX + ROAD_LEN*1.5, spawnZ, true);
   addRoadblockAt(carStartX + ROAD_LEN*3.0, spawnZ, true);
-  spawnPursuer(carStartX - 30, spawnZ);
+  spawnDrone(carStartX - 30, spawnZ);
+
+    // Example hazard near spawn
+  addGlassAt(carStartX + ROAD_LEN*2, spawnZ);
+
 }
+
 bootstrap();
 
 /* ===================== Controls & movement ===================== */
@@ -817,6 +1573,8 @@ let speed=0; const params={ accel:8.0, brake:12.0, reverseAccel:6.0, maxFwd:14.0
 const camTarget=new THREE.Vector3(); const FP_EYE_OFFSET=new THREE.Vector3(0.05,1.55,0.12);
 
 function update(dt){
+  if (!gameStarted) return;
+
   if (keys.has('KeyW')) speed += params.accel * dt;
   else if (keys.has('KeyS')) speed += (speed>0 ? -params.brake : -params.reverseAccel) * dt;
   else { const s=Math.sign(speed); speed -= s*params.friction*dt; if (Math.sign(speed)!==s) speed=0; }
@@ -838,14 +1596,18 @@ function update(dt){
   car.position.copy(fixed);
   car.rotation.set(0, heading, 0);
 
+    // maintain a single lamp pair on the next straight segment in front of the car
+  ensureAheadLampPair();
+
+
   // one-tap actions
   if (keys.has('KeyC')) { firstPerson = !firstPerson; keys.delete('KeyC'); }
   if (keys.has('KeyL')) { setStreetLights(!streetLightsOn); keys.delete('KeyL'); }
   if (keys.has('KeyH')) { setHeadlights(!headlightsOn); keys.delete('KeyH'); }
-  if (keys.has('KeyR')) { replacePlaceholdersNear(car.position, 400, false); keys.delete('KeyR'); }
+  if (keys.has('KeyR')) { keys.delete('KeyR'); /* reserved */ }
   if (keys.has('KeyP')) { dropParcel(); keys.delete('KeyP'); }
   if (keys.has('KeyB')) { spawnRoadblockAhead(); keys.delete('KeyB'); }
-  if (keys.has('KeyE')) { spawnPursuerBehind();  keys.delete('KeyE'); }
+  if (keys.has('KeyE')) { spawnDroneBehind();    keys.delete('KeyE'); }
 
   if (keys.has('KeyN')) {
     keys.delete('KeyN');
@@ -855,7 +1617,7 @@ function update(dt){
       setStreetLights(true); setHeadlights(true);
     } else {
       sun.intensity = 0.8; amb.intensity = 0.45; renderer.toneMappingExposure = 1.0; scene.background.set(0x101018);
-      setStreetLights(false); setHeadlights(false);
+      setStreetLights(true); setHeadlights(true);
     }
   }
 
@@ -879,41 +1641,29 @@ function update(dt){
     camera.lookAt(camTarget);
   }
 
-  // update car velocity vector for collision math
+  // car velocity for collision math
   carVelVec.copy(forward).multiplyScalar(speed);
 
-  // enemies move
-  updateAgents(dt);
+    // === Glass hazard slowdown ===
+  for (const g of glassHazards) {
+    const aabb = g.aabb;
+    if (
+      car.position.x >= aabb.minX && car.position.x <= aabb.maxX &&
+      car.position.z >= aabb.minZ && car.position.z <= aabb.maxZ
+    ) {
+      speed *= 0.92; // apply slowdown factor each frame on glass
+    }
+  }
 
-  // handle car <-> pursuer collisions + damage
+  // enemies move + collisions + damage (+ explosions/respawn)
+  updateAgents(dt);
   handleCarAgentCollisions(dt);
+
+  // explosions update
+  updateExplosions(dt);
 
   // minimap
   refreshVisibleSegments(); drawMinimap();
-}
-
-/* ===================== Minimap helpers & building replacement ===================== */
-function isGreyPlaceholder(mesh){
-  if (!mesh?.isMesh) return false;
-  const g=mesh.geometry; if (!(g && g.isBoxGeometry)) return false;
-  const m=mesh.material; if (!m || !m.color) return false;
-  const hex=m.color.getHex(); const isGreyish = hex>=0x3a3a3a && hex<=0xa0a0a0;
-  return isGreyish && !mesh.userData.__isRealBuilding;
-}
-function cloneBuildingAt(pos, rotY, targetHeight, preferSmall){
-  const clone = makeBuildingClone(targetHeight, preferSmall); clone.position.copy(pos); clone.rotation.y = rotY||0;
-  clone.traverse(o=>{ if (o.isMesh) o.userData.__isRealBuilding = true; });
-  clone.updateWorldMatrix(true,true);
-  clone.userData.aabb = makeAABBFor(clone);
-  scene.add(clone); return clone;
-}
-function replacePlaceholdersNear(center=car.position, radius=160, preferSmall=false){
-  const toReplace=[]; scene.traverse(obj=>{ if (obj.isMesh && isGreyPlaceholder(obj)){ const d=obj.position.distanceTo(center); if (d<=radius) toReplace.push(obj); } });
-  for (const box of toReplace){
-    const b=new THREE.Box3().setFromObject(box); const size=new THREE.Vector3(); b.getSize(size);
-    const height=Math.max(6,size.y); cloneBuildingAt(box.position, box.rotation?.y||0, height, preferSmall);
-    box.parent?.remove(box);
-  }
 }
 
 /* ===================== Tick + adaptive resolution ===================== */
