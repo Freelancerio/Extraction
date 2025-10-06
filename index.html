@@ -113,6 +113,95 @@
   </div>
 </div>
 
+<!-- ===== Level Select ===== -->
+<div id="levelSelect" style="position:absolute; inset:0; display:none; z-index:12;
+  background:rgba(0,0,0,.65); align-items:center; justify-content:center;">
+  <div style="background:#11151b; border:1px solid #2a3038; border-radius:12px;
+      width:min(520px,92vw); padding:20px 22px; box-shadow:0 18px 46px rgba(0,0,0,.5);">
+    <div style="color:#e9eef5; font:700 20px/1.2 system-ui, sans-serif; margin:0 0 10px;">
+      Select Level
+    </div>
+
+    <div style="display:grid; gap:10px;">
+      <button id="lvlBtn0" style="padding:14px 16px; min-height:64px; border-radius:10px; border:1px solid #2c3442;
+  background:#1a2230; color:#e4edf6; font:600 14px system-ui; cursor:pointer;
+  text-align:center; line-height:1.2;"></button>
+
+<button id="lvlBtn1" style="padding:14px 16px; min-height:64px; border-radius:10px; border:1px solid #2c3442;
+  background:#1a2230; color:#e4edf6; font:600 14px system-ui; cursor:pointer;
+  text-align:center; line-height:1.2;"></button>
+
+<button id="lvlBtn2" style="padding:14px 16px; min-height:64px; border-radius:10px; border:1px solid #2c3442;
+  background:#1a2230; color:#e4edf6; font:600 14px system-ui; cursor:pointer;
+  text-align:center; line-height:1.2;"></button>
+
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+      <button id="btnBackStart" style="padding:8px 12px; border-radius:8px; border:1px solid #2c3442;
+        background:#141b25; color:#b8c3cf; font:600 13px system-ui; cursor:pointer;">
+        ← Back
+      </button>
+      <div style="font:12px/1.2 system-ui; color:#9aa6b2;">Keyboard + mouse required</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Credits Screen ===== -->
+<div id="creditsScreen" style="position:absolute; inset:0; display:none; z-index:12;
+  background:rgba(0,0,0,.65); align-items:center; justify-content:center;">
+  <div style="background:#11151b; border:1px solid #2a3038; border-radius:12px;
+      width:min(620px,92vw); padding:22px 22px; box-shadow:0 18px 46px rgba(0,0,0,.5);">
+    <div style="color:#e9eef5; font:800 22px/1.2 system-ui, sans-serif; margin:0 0 4px;">
+      Credits
+    </div>
+    <div style="color:#9aa6b2; font:500 13px/1.4 system-ui; margin:0 0 14px;">
+      Thanks to the following creators and libraries:
+    </div>
+
+    <div id="creditsList" style="display:grid; gap:10px;"></div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+      <button id="btnBackFromCredits" style="padding:8px 12px; border-radius:8px; border:1px solid #2c3442;
+        background:#141b25; color:#b8c3cf; font:600 13px system-ui; cursor:pointer;">
+        ← Back
+      </button>
+      <div style="font:12px/1.2 system-ui; color:#9aa6b2;">
+        UI inspired by the Level Select layout
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ===== Game Over / Failure ===== -->
+<div id="failUI" style="position:absolute; inset:0; display:none; z-index:20;
+  background:rgba(0,0,0,.6); align-items:center; justify-content:center;">
+  <div style="background:#11151b; border:1px solid #2a3038; border-radius:12px;
+      width:min(520px,92vw); padding:20px 22px; box-shadow:0 18px 46px rgba(0,0,0,.5);">
+    <div id="failTitle" style="color:#ffb3b3; font:800 20px/1.2 system-ui, sans-serif;">
+      Mission Failed
+    </div>
+    <div id="failMsg" style="color:#cfd6dc; margin:8px 0 14px; font:500 14px/1.35 system-ui;">
+      Time’s up!
+    </div>
+
+    <div style="display:flex; gap:10px;">
+      <button id="btnRetry" style="padding:10px 14px; border-radius:10px; border:1px solid #2c3442;
+        background:#1a2230; color:#e4edf6; font:600 14px system-ui; cursor:pointer;">
+        Retry
+      </button>
+      <button id="btnBackLevels" style="padding:10px 14px; border-radius:10px; border:1px solid #2c3442;
+        background:#141b25; color:#b8c3cf; font:600 14px system-ui; cursor:pointer;">
+        Back to Level Select
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
 <!-- Modal -->
 <div id="modal">
   <div class="modal-card" role="dialog" aria-labelledby="modal-title">
@@ -133,8 +222,41 @@
   <div id="healthBar"><div id="healthFill"></div></div>
 </div>
 
+<!-- Objective HUD -->
+<div id="objectiveUI" style="position:absolute; top:36px; right:12px; z-index:8; display:none; color:#cfd6dc; font:600 14px/1.2 system-ui, sans-serif;">
+  <div id="hudLevel" style="opacity:.95; margin-bottom:6px;"></div>
+  <div style="display:flex; gap:12px;">
+    <div>⏱ <span id="hudTimer">00:00</span></div>
+    <div>📦 <span id="hudGoals">0/0</span></div>
+  </div>
+</div>
+
+
 <canvas id="minimap"></canvas>
 <div id="toast" aria-live="polite"></div>
+
+<canvas id="minimap"></canvas>
+
+<!-- ===== Pause Menu Overlay ===== -->
+<div id="pauseMenu" style="
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+">
+  <h1 style="color: white; font-size: 2em; margin-bottom: 1em;">Paused</h1>
+  <button id="btnQuitLevel" style="padding: 12px 24px; margin: 8px; font-size: 1.1em;">Quit Level</button>
+  <button id="btnInstructions" style="padding: 12px 24px; margin: 8px; font-size: 1.1em;">Instructions and Controls</button>
+</div>
+
+<div id="toast" aria-live="polite"></div>
+
 
 <script type="module">
 import * as THREE from 'three';
@@ -168,6 +290,10 @@ const RUBBISH_GLB = 'Rubbish.glb';
 /* Slowdown hazard (smashed glass) */
 const GLASS_GLB = 'Smashed Glass.glb';
 
+/* Power-up box (yellow question block) */
+const POWER_BOX_GLB = '-Block.glb';
+
+
 /* Street light model */
 const STREET_LIGHT_GLB = 'Street Light.glb';
 /* ---- Street-light tuning ---- */
@@ -186,11 +312,32 @@ const GLB_LAMP_BULB_DROP   = 0.80;  // how far the bulb hangs below the head (�
 const GLB_LAMP_TARGET_DROP = 3.2;   // how far the light aims downward (↑ to aim lower)
 
 
+
 /* Goal flag */
 const GOAL_FLAG_GLB = 'Goal Flag.glb';
 
 /* Paver (ground) */
 const PAVER_GLB = 'flagstone paver.glb';
+
+// === Background Music Setup ===
+const bgMusic = new Audio('assets/sounds/background-music.mp3');
+bgMusic.loop = true;
+bgMusic.volume = 0.25; // softer than engine sounds
+
+// Attempt autoplay (some browsers need user click first)
+bgMusic.play().catch(() => {
+  console.log('Background music will start after user interaction.');
+});
+
+// Start the music when user clicks anywhere (fallback for autoplay restriction)
+document.addEventListener('click', () => {
+  if (bgMusic.paused) bgMusic.play();
+}, { once: true });
+
+
+
+
+
 
 
 
@@ -212,6 +359,46 @@ const btnClose  = document.getElementById('btn-close');
 const modalTitle   = document.getElementById('modal-title');
 const modalContent = document.getElementById('modal-content');
 
+// Level select UI
+const levelSelectEl = document.getElementById('levelSelect');
+const btnLvl0 = document.getElementById('lvlBtn0');
+const btnLvl1 = document.getElementById('lvlBtn1');
+const btnLvl2 = document.getElementById('lvlBtn2');
+const btnBackStart = document.getElementById('btnBackStart');
+
+// Failure UI
+const failUI = document.getElementById('failUI');
+const failMsgEl = document.getElementById('failMsg');
+const btnRetry = document.getElementById('btnRetry');
+const btnBackLevels = document.getElementById('btnBackLevels');
+
+
+// Keep labels synced with LEVELS[]
+function refreshLevelSelectLabels(){
+  // No window.LEVELS guard — module scope variables aren't on window
+  const desc = [
+    '3 goals, 3:00 timer, no pursuers, day.',
+    '4 goals, 2:30, 1 pursuer, night + lamps on.',
+    '5 goals, 2:30, 2–3 pursuers, extra roadblocks.'
+  ];
+
+  const setBtn = (btn, idx) => {
+    const L = LEVELS[idx]; // direct reference; LEVELS is in the same module
+    btn.innerHTML =
+      `<div style="font-weight:700; color:#e9eef5;">Level ${idx+1} — ${L.name}</div>
+       <div style="font-weight:500; font-size:12px; color:#b9c4d0; opacity:.92; margin-top:2px;">
+         ${desc[idx]}
+       </div>`;
+  };
+
+  setBtn(btnLvl0, 0);
+  setBtn(btnLvl1, 1);
+  setBtn(btnLvl2, 2);
+}
+
+
+
+
 const infoEl     = document.getElementById('info');
 const healthWrap = document.getElementById('healthUI');
 const minimapEl  = document.getElementById('minimap');
@@ -219,6 +406,18 @@ const minimapEl  = document.getElementById('minimap');
 let gameStarted = false;
 function openModal(title, html){ modalTitle.textContent = title; modalContent.innerHTML = html; modalEl.style.display = 'grid'; }
 function closeModal(){ modalEl.style.display = 'none'; }
+/* ===== Credits data ===== */
+const CREDITS = [
+  { title: "Small Building by Kenney", url: "https://poly.pizza/m/QjL4Fo9dU9", note: "" },
+  { title: "Large Building by Kenney", url: "https://poly.pizza/m/yKo7F36Qk2", note: "" },
+  { title: "Pickup Truck by Quaternius", url: "https://poly.pizza/m/qn4grQgHm8", note: "" },
+  { title: "Anti-Gravity Drone by Adam Marc Williams", url: "https://poly.pizza/m/fiYuC73Xlwp", note: "License: CC-BY 3.0" },
+  { title: "Smashed Glass by AlexCrean", url: "https://poly.pizza/m/s5z0Wvs1Wi", note: "License: CC-BY 3.0" },
+  { title: "Rubbish by Poly by Google", url: "https://poly.pizza/m/fxU6_KtzTiX", note: "License: CC-BY 3.0" },
+  { title: "Goal Flag by Quaternius", url: "https://poly.pizza/m/onAi7dx56P", note: "" },
+  { title: "three.js (WebGL library)", url: "https://threejs.org/", note: "" }
+];
+
 btnInstr.addEventListener('click', ()=>{
   openModal('Instructions & Controls', `
     <p>Drive through the city grid, avoid buildings/roadblocks, and evade pursuers.</p>
@@ -232,20 +431,157 @@ btnInstr.addEventListener('click', ()=>{
     </ul>
   `);
 });
-btnCreds.addEventListener('click', ()=>{
-  openModal('Credits', `<p>Prototype by Stephan Botha. Built with three.js. Assets from public 3D libraries.</p>`);
+btnCreds.addEventListener('click', () => {
+  // Build rows
+  let rows = CREDITS.map((item) => {
+    // Remove leading http:// or https:// for display only
+    const clean = item.url.replace(/^https?:\/\//, '');
+
+    return '' +
+      '<a href="' + item.url + '" target="_blank" rel="noopener" ' +
+      '   style="display:block; padding:14px 16px; min-height:64px;' +
+      '          border-radius:10px; border:1px solid #2c3442;' +
+      '          background:#1a2230; color:#e4edf6; text-decoration:none;' +
+      '          font:600 14px system-ui;">' +
+      '  <div style="font-weight:800; color:#e9eef5;">' + item.title + '</div>' +
+      '  <div style="font-weight:500; font-size:12px; color:#b9c4d0; opacity:.92; margin-top:2px;">' +
+           (item.note ? item.note + ' · ' : '') + clean +
+      '  </div>' +
+      '</a>';
+  }).join('');
+
+  const listHtml =
+    '<div style="display:grid; gap:10px;">' +
+      rows +
+    '</div>';
+
+  // Uses your existing modal
+  openModal('Credits', listHtml);
 });
+
+
 btnClose.addEventListener('click', closeModal);
 modalEl.addEventListener('click', (e)=>{ if (e.target === modalEl) closeModal(); });
 
-function startGame(){
-  if (gameStarted) return;
-  gameStarted = true;
+function startSelectedLevel(idx){
+  // Hide menus, show HUDs
+  levelSelectEl.style.display = 'none';
   startEl.style.display = 'none';
   infoEl.style.display = 'block';
   healthWrap.style.display = 'block';
   minimapEl.style.display = 'block';
+  objectiveUI.style.display = 'block';
+
+  // ⤵️ Ensure the canvas gets a real size now that it's visible
+  resizeMinimap();
+  // draw immediately (skip throttles on first frame)
+  mmLastFilter = 0;
+  mmLastDraw   = 0;
+
+ // ===== Engine Start Sound + Loop Setup =====
+const startSound = new Audio('assets/sounds/car-engine-starting.wav');
+startSound.volume = 0.6; // adjust loudness
+startSound.play();
+
+// After startup sound ends, start looping engine
+startSound.addEventListener('ended', () => {
+  if (!window.engineSound) {
+    window.engineSound = new Audio('assets/sounds/engine-loop.ogg');
+    engineSound.loop = true;
+    engineSound.volume = 0.35; // adjust to your liking
+  }
+  engineSound.currentTime = 0;
+  engineSound.play();
+});
+
+
+
+  // Begin gameplay
+  gameStarted = true;
+  startLevel(idx);
+  // Power-box streaming: start measuring from the current car position
+resetPowerBoxProgress();
+
 }
+
+// Hook up buttons
+btnLvl0.onclick = () => startSelectedLevel(0);
+btnLvl1.onclick = () => startSelectedLevel(1);
+btnLvl2.onclick = () => startSelectedLevel(2);
+btnBackStart.onclick = () => {
+  levelSelectEl.style.display = 'none';
+  startEl.style.display = 'grid'; // your #start-screen uses display:grid
+};
+
+// === Global button click sound ===
+document.querySelectorAll('button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    playButtonClickSfx();
+  });
+});
+
+
+
+// Optional: Esc closes selector back to start (only when not in-game)
+addEventListener('keydown', (e)=>{
+  if (!gameStarted && levelSelectEl.style.display !== 'none' && e.code === 'Escape'){
+    levelSelectEl.style.display = 'none';
+    startEl.style.display = 'grid';
+  }
+});
+
+function showFailMenu(msg){
+  paused = true;                  // freeze game
+  speed = 0;
+  keys.clear();                   // stop any held inputs
+  failMsgEl.textContent = msg || 'Mission failed.';
+  failUI.style.display = 'flex';
+}
+function hideFailMenu(){ failUI.style.display = 'none'; }
+
+function goToLevelSelect(){
+  hideFailMenu();
+  gameStarted = false;
+  paused = false;
+
+  // Hide HUDs
+  infoEl.style.display = 'none';
+  healthWrap.style.display = 'none';
+  minimapEl.style.display = 'none';
+  objectiveUI.style.display = 'none';
+
+  // Show level selector
+  refreshLevelSelectLabels();
+  levelSelectEl.style.display = 'flex';
+}
+
+btnRetry.onclick = () => {
+  hideFailMenu();
+  paused = false;
+  gameStarted = true;
+  startLevel(levelIndex);        // retry same level
+};
+btnBackLevels.onclick = goToLevelSelect;
+
+// Optional keys on fail screen
+addEventListener('keydown', (e)=>{
+  if (failUI.style.display !== 'none'){
+    if (e.code === 'Enter') btnRetry.click();
+    if (e.code === 'Escape') btnBackLevels.click();
+  }
+});
+
+
+
+function startGame(){
+  if (gameStarted) return;
+  // Show level select instead of starting immediately
+  startEl.style.display = 'none';
+  refreshLevelSelectLabels();
+  levelSelectEl.style.display = 'flex'; // centered via inline styles
+}
+
+
 btnPlay.addEventListener('click', startGame);
 startEl.addEventListener('keydown', (e)=>{ if (e.code === 'Enter') startGame(); });
 
@@ -260,13 +596,86 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.BasicShadowMap;
 document.body.appendChild(renderer.domElement);
 
+
+
 /* ===================== SCENE / CAMERA / LIGHTS ===================== */
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x101018);
+
+// --- Fog presets ---
+const FOG_DAY_COLOR   = 0x101018;  // subtle blue-grey (day)
+const FOG_DAY_DENSITY = 0.012;
+
+const FOG_NIGHT_COLOR   = 0x0a0b10; // deep blue (night)
+const FOG_NIGHT_DENSITY = 0.03;
+
+// Use clearColor (not scene.background) so the sky dome shows through
+scene.background = null;
+scene.fog = new THREE.FogExp2(FOG_DAY_COLOR, FOG_DAY_DENSITY);
+renderer.setClearColor(FOG_DAY_COLOR, 1);
+
+// Helper to change fog quickly
+function setFog(color, density){
+  scene.fog.color.set(color);
+  scene.fog.density = density;
+  renderer.setClearColor(color, 1);
+}
+
 
 const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.03, 2000);
 camera.position.set(0,6,12);
 scene.add(camera);
+
+// ===== Sky gradient dome =====
+// Colors you can tweak:
+const SKY_DAY_TOP    = 0x9dc7ff;  // zenith (up)
+const SKY_DAY_BOTTOM = 0xeaf2ff;  // horizon (down)
+const SKY_NIGHT_TOP    = 0x0a0b16;
+const SKY_NIGHT_BOTTOM = 0x11131c;
+
+// Small shader that blends between two colors by vertical direction
+function makeSkyGradient(topHex, bottomHex, radius = 3000){
+  const uniforms = {
+    topColor:    { value: new THREE.Color(topHex) },
+    bottomColor: { value: new THREE.Color(bottomHex) }
+  };
+  const vtx = `
+    varying vec3 vWorldPos;
+    void main(){
+      vec4 wp = modelMatrix * vec4(position,1.0);
+      vWorldPos = wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }
+  `;
+  const frag = `
+    varying vec3 vWorldPos;
+    uniform vec3 topColor;
+    uniform vec3 bottomColor;
+    void main(){
+      // 0 at horizon, 1 at zenith (based on world up)
+      float h = normalize(vWorldPos).y * 0.5 + 0.5;
+      h = pow(h, 1.5);
+      gl_FragColor = vec4(mix(bottomColor, topColor, h), 1.0);
+    }
+  `;
+  const mat = new THREE.ShaderMaterial({
+    uniforms, vertexShader: vtx, fragmentShader: frag,
+    side: THREE.BackSide, depthWrite: false
+  });
+  const geo = new THREE.SphereGeometry(radius, 32, 16);
+  return { mesh: new THREE.Mesh(geo, mat), uniforms };
+}
+
+// Use a radius safely inside the far plane
+const SKY_RADIUS = Math.floor(camera.far * 0.9);
+const sky = makeSkyGradient(SKY_DAY_TOP, SKY_DAY_BOTTOM, SKY_RADIUS);
+sky.mesh.renderOrder = -1;   // draw behind everything
+scene.add(sky.mesh);
+
+function setSkyColors(topHex, bottomHex){
+  sky.uniforms.topColor.value.set(topHex);
+  sky.uniforms.bottomColor.value.set(bottomHex);
+}
+
 
 const amb = new THREE.AmbientLight(0xffffff, 0.45); scene.add(amb);
 
@@ -892,10 +1301,189 @@ function ensureAheadLampPair() {
   if (!best) return;
 
   const key = segKey(best);
-  if (activeLampPair?.key === key) return; // already spawned for this ahead segment
+    if (activeLampPair?.key === key) return; // already spawned for this ahead segment
 
+  // We’re moving onto a new "ahead straight segment":
   spawnLampPairForSegment(best);
+
+  // === Power box cadence: roughly 1 per 4 straight segments ===
+  pbSegCounter++;
+  if (pbSegCounter >= 4) {
+    pbSegCounter = 0;
+    if (!hasNearbyPowerBox(best.x, best.z)) {
+      addPowerBoxAt(best.x, best.z);
+    }
+  }
+
 }
+
+/* ===================== GAME STATE & LEVELS ===================== */
+// 3 simple stages (tweak freely)
+const LEVELS = [
+  { name:'Dawn Delivery',  goals:3, time:180, night:false, pursuers:0, roadblocks:1, glass:1 },
+  { name:'Night Shift',    goals:4, time:150, night:true,  pursuers:1, roadblocks:2, glass:2 },
+  { name:'Lockdown',       goals:5, time:150, night:true,  pursuers:3, roadblocks:3, glass:3 },
+];
+
+let levelIndex = 0;
+let deliveries = 0;
+let timeLeft   = 0;
+let paused     = false;
+
+const objectiveUI  = document.getElementById('objectiveUI');
+const hudLevelEl   = document.getElementById('hudLevel');
+const hudTimerEl   = document.getElementById('hudTimer');
+const hudGoalsEl   = document.getElementById('hudGoals');
+
+function fmtTime(sec){
+  sec = Math.max(0, Math.floor(sec));
+  const m = (sec/60)|0, s = sec%60;
+  return `${m.toString().padStart(1,'0')}:${s.toString().padStart(2,'0')}`;
+}
+
+function setDay(){
+  sun.intensity = 0.8;
+  amb.intensity = 0.45;
+  renderer.toneMappingExposure = 1.0;
+
+  // Fog + sky for day
+  setFog(FOG_DAY_COLOR, FOG_DAY_DENSITY);
+  setSkyColors(SKY_DAY_TOP, SKY_DAY_BOTTOM);
+
+  setStreetLights(true);
+  setHeadlights(true);
+}
+
+function setNight(){
+  sun.intensity = 0.04;
+  amb.intensity = 0.06;
+  renderer.toneMappingExposure = 1.15;
+
+  // Fog + sky for night
+  setFog(FOG_NIGHT_COLOR, FOG_NIGHT_DENSITY);
+  setSkyColors(SKY_NIGHT_TOP, SKY_NIGHT_BOTTOM);
+
+  setStreetLights(true);
+  setHeadlights(true);
+}
+
+function updateObjectiveHUD(){
+  const L = LEVELS[levelIndex];
+  hudLevelEl.textContent = `Level ${levelIndex+1} — ${L.name}`;
+  hudTimerEl.textContent = fmtTime(timeLeft);
+  hudGoalsEl.textContent = `${deliveries}/${L.goals}`;
+}
+
+/* cleanups used when (re)starting a level */
+function clearObstaclesAndHazards(){
+  for (const o of obstacles) scene.remove(o.mesh);
+  obstacles.length = 0;
+  for (const g of glassHazards) scene.remove(g.mesh);
+  glassHazards.length = 0;
+}
+function clearAgents(){
+  for (const a of agents) scene.remove(a.mesh);
+  agents.length = 0;
+}
+function clearGoal(){
+  if (goalNode) { scene.remove(goalNode); goalNode=null; }
+  if (goalLight){ scene.remove(goalLight); goalLight=null; }
+  clearTrail();
+}
+
+function randomSegmentFarFrom(x, z, minDist=DEST_MIN_DIST){
+  const c = [];
+  for (const s of roadSegments){
+    if (Math.hypot(s.x-x, s.z-z) >= minDist) c.push(s);
+  }
+  return c.length ? c[Math.random()*c.length|0] : null;
+}
+
+/* Start / End / Goal flow */
+function startLevel(i){
+  levelIndex = THREE.MathUtils.clamp(i, 0, LEVELS.length-1);
+  const L = LEVELS[levelIndex];
+
+    // ensure fail UI is hidden and player state reset
+  hideFailMenu?.();
+  paused = false;
+  gameStarted = true;
+  health = 100; setHealthBar(health);
+  speed = 0; keys.clear();
+
+  // reset player to spawn
+  car.position.set(carStartX, 0, spawnZ);
+  heading = 0;
+  car.rotation.set(0, heading, 0);
+
+
+  // reset state
+  deliveries = 0;
+  timeLeft   = L.time;
+  paused     = false;
+
+  // world prep
+  clearObstaclesAndHazards();
+  clearAgents();
+  clearGoal();
+
+  // lighting
+  if (L.night) setNight(); else setDay();
+
+  // spawn initial pursuers
+  for (let k=0;k<L.pursuers;k++) spawnDroneNearPlayer(12, 20);
+
+  // a few roadblocks & glass on random roads (not right at the car)
+  for (let r=0;r<L.roadblocks;r++){
+    const seg = randomSegmentFarFrom(car.position.x, car.position.z, ROAD_LEN*4) || roadSegments[(Math.random()*roadSegments.length)|0];
+    addRoadblockAt(seg.x, seg.z, seg.isX ?? true);
+  }
+  for (let g=0; g<L.glass; g++){
+    const seg = randomSegmentFarFrom(car.position.x, car.position.z, ROAD_LEN*4) || roadSegments[(Math.random()*roadSegments.length)|0];
+    addGlassAt(seg.x, seg.z);
+  }
+
+ 
+
+
+  // place first destination + bread-crumbs
+  spawnGoalAndTrail();
+
+  objectiveUI.style.display = 'block';
+  updateObjectiveHUD();
+}
+
+function endLevel(success){
+  if (success){
+    showToast('Level complete!', 1600);
+    if (levelIndex+1 < LEVELS.length) {
+      setTimeout(()=> startLevel(levelIndex+1), 1100);
+    } else {
+      setTimeout(()=> showToast('All deliveries complete — GG! 🎉', 2600), 1000);
+    }
+  } else {
+    showFailMenu("Time's up!");
+  }
+}
+
+function onReachGoal(){
+  deliveries++;
+  updateObjectiveHUD();
+
+  const L = LEVELS[levelIndex];
+  if (deliveries >= L.goals){
+    endLevel(true);
+  } else {
+    // place another far goal
+    const startSeg = nearestRoadCenter(car.position);
+    const targetSeg = randomFarRoad(DEST_MIN_DIST);
+    if (startSeg && targetSeg) {
+      placeGoalAt(targetSeg);
+      buildOrthogonalPath(startSeg, targetSeg);
+    }
+  }
+}
+
 
 
 /* ===================== Goal & illuminated trail ===================== */
@@ -909,6 +1497,8 @@ const DEST_MIN_DIST = ROAD_LEN * 8;         // how far the goal must be from the
 const TRAIL_STEP = 2.4;                     // spacing between breadcrumbs (meters)
 const TRAIL_DISC_SIZE = 0.9;                // visual size of breadcrumb
 const TRAIL_LIGHT_INTENSITY = 0.7;          // each breadcrumb’s soft glow
+const GOAL_REACH_RADIUS = 2.2;         // distance from flag to count as delivered
+
 
 async function loadGoalPrefab() {
   return new Promise((resolve) => {
@@ -1073,6 +1663,215 @@ function addGlassAt(x, z) {
   return mesh;
 }
 
+/* ===================== Power Boxes (yellow question block) ===================== */
+let POWER_BOX_PREFAB = null;
+const powerBoxes = [];
+
+/** Load the GLB once and store a prefab */
+async function loadPowerBoxPrefab() {
+  return new Promise((resolve) => {
+    new GLTFLoader().setPath(VEHICLE_PATH).load(
+      POWER_BOX_GLB,
+      (gltf) => {
+        const root = gltf.scene;
+        root.traverse(o => {
+          if (o.isMesh) {
+            o.castShadow = o.receiveShadow = true;
+            if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+          }
+        });
+
+        // Scale to a nice world size (~1.4m cube)
+        let box = new THREE.Box3().setFromObject(root);
+        const size = new THREE.Vector3(); box.getSize(size);
+        const target = 1.4;
+        const longest = Math.max(size.x, size.y, size.z) || 1;
+        const s = target / longest;
+        root.scale.setScalar(s);
+
+        // Sit on the ground plane
+        box = new THREE.Box3().setFromObject(root);
+        root.position.y = -box.min.y + BASE_HEIGHT;
+
+        POWER_BOX_PREFAB = root;
+        resolve(true);
+      },
+      undefined,
+      () => resolve(false)
+    );
+  });
+}
+
+/** Clone + place a power box at (x,z) */
+function addPowerBoxAt(x, z) {
+  let mesh;
+  if (POWER_BOX_PREFAB) {
+    mesh = POWER_BOX_PREFAB.clone(true);
+    mesh.position.set(x, mesh.position.y, z);
+    mesh.rotation.y = (Math.PI/2) * (Math.random()*4|0); // 0/90/180/270
+  } else {
+    // Fallback simple box if GLB fails
+    const geo = new THREE.BoxGeometry(1.4, 1.4, 1.4);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffd23c, roughness: 0.6, metalness: 0.05 });
+    mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, BASE_HEIGHT + 0.7, z);
+    mesh.castShadow = mesh.receiveShadow = true;
+  }
+
+  scene.add(mesh);
+  const aabb = makeAABBFor(mesh);
+  powerBoxes.push({ mesh, aabb });
+  return mesh;
+}
+
+// Prevent clustering: is there a box already very close?
+function hasNearbyPowerBox(x, z, minDist = ROAD_LEN * 1.2) {
+  const m2 = minDist * minDist;
+  for (const pb of powerBoxes) {
+    const dx = pb.mesh.position.x - x;
+    const dz = pb.mesh.position.z - z;
+    if (dx*dx + dz*dz < m2) return true;
+  }
+  return false;
+}
+
+// Count how many "ahead straight segments" we’ve moved through
+let pbSegCounter = 0;
+
+/* ===================== Reversed Controls ===================== */
+let reversedControls = false;
+let reverseUntil = 0;
+
+function isReversedActive() {
+  return reversedControls && performance.now() < reverseUntil;
+}
+
+function activateReversed(ms = 3000) {
+  reversedControls = true;
+  reverseUntil = performance.now() + ms;
+  showToast('Controls reversed!', 1000);
+}
+
+function endReversed() {
+  if (!reversedControls) return;
+  reversedControls = false;
+  showToast('Controls normal', 900);
+}
+
+
+/* ===================== Ghost Mode (pass-through) ===================== */
+let isGhostMode = false;
+let ghostUntil  = 0;
+
+function isGhostActive(){
+  return isGhostMode && performance.now() < ghostUntil;
+}
+
+function setCarGhostVisual(on){
+  // Slightly transparent + a bit more emissive while active
+  car.traverse(o=>{
+    if (!o.isMesh || !o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of mats){
+      if (!m) continue;
+      m.userData ??= {};
+      if (on){
+        if (m.userData._origTransparent === undefined) m.userData._origTransparent = m.transparent;
+        if (m.userData._origOpacity     === undefined) m.userData._origOpacity     = m.opacity ?? 1;
+        if (m.emissive && m.userData._origEmissive === undefined) m.userData._origEmissive = m.emissiveIntensity ?? 0;
+
+        m.transparent = true;
+        m.opacity = 0.45;
+        if (m.emissive) m.emissiveIntensity = (m.userData._origEmissive ?? 0) + 0.6;
+      } else {
+        if (m.userData._origTransparent !== undefined) m.transparent = m.userData._origTransparent;
+        if (m.userData._origOpacity     !== undefined) m.opacity     = m.userData._origOpacity;
+        if (m.emissive && m.userData._origEmissive !== undefined) m.emissiveIntensity = m.userData._origEmissive;
+      }
+    }
+  });
+}
+
+function activateGhostMode(ms=3000){
+  isGhostMode = true;
+  ghostUntil  = performance.now() + ms;
+  setCarGhostVisual(true);
+  showToast('Ghost mode: pass through!', 1200);
+}
+
+function endGhostMode(){
+  if (!isGhostMode) return;
+  isGhostMode = false;
+  setCarGhostVisual(false);
+  showToast('Ghost mode ended', 900);
+}
+
+
+
+
+
+
+// ---- Streaming spawn along the path (≈ one every ~4 segments) ----
+let pbTraveled = 0;                         // meters since last spawn
+let pbNextEvery = 0;                        // meters until next spawn
+const PB_MIN_SEG = 3.5;                     // ~3.5 segments
+const PB_MAX_SEG = 5.0;                     // up to ~5 segments
+const _pbTmp = new THREE.Vector3();
+const _pbLastPos = new THREE.Vector3();
+
+function resetPowerBoxProgress() {
+  pbTraveled = 0;
+  pbNextEvery = ROAD_LEN * (PB_MIN_SEG + Math.random() * (PB_MAX_SEG - PB_MIN_SEG));
+  _pbLastPos.copy(car.position);
+}
+
+// Pick a road segment roughly ahead of the car
+function pickAheadRoadSegment() {
+  const fwd = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), heading);
+  let best = null, bestDot = 0, bestD2 = Infinity;
+
+  for (const seg of roadSegments) {
+    const v = _pbTmp.set(seg.x - car.position.x, 0, seg.z - car.position.z);
+    const dot = v.dot(fwd);          // >0 means in front
+    if (dot <= 0) continue;
+    const d2 = v.lengthSq();
+    // Prefer most forward, break ties by closer
+    if (dot > bestDot || (Math.abs(dot - bestDot) < 1e-3 && d2 < bestD2)) {
+      best = seg; bestDot = dot; bestD2 = d2;
+    }
+  }
+  return best;
+}
+
+function tickPowerBoxProgress() {
+  // accumulate distance the car actually moved this frame
+  const moved = _pbTmp.copy(car.position).sub(_pbLastPos).length();
+  if (moved > 0) {
+    pbTraveled += moved;
+    _pbLastPos.copy(car.position);
+  }
+
+  if (pbTraveled >= pbNextEvery) {
+    pbTraveled = 0;
+    pbNextEvery = ROAD_LEN * (PB_MIN_SEG + Math.random() * (PB_MAX_SEG - PB_MIN_SEG));
+
+    // choose an ahead segment and drop a box there
+    const seg = pickAheadRoadSegment();
+    if (seg) {
+      // avoid placing on top of an existing box
+      let farEnough = true;
+      for (const pb of powerBoxes) {
+        if (pb.mesh.position.distanceToSquared(_pbTmp.set(seg.x, pb.mesh.position.y, seg.z)) < (ROAD_LEN * ROAD_LEN * 0.5)) {
+          farEnough = false; break;
+        }
+      }
+      if (farEnough) addPowerBoxAt(seg.x, seg.z);
+    }
+  }
+}
+
+
+
 
 function addRoadblockAt(x, z, isX = true) {
   let block;
@@ -1105,6 +1904,35 @@ function spawnRoadblockAhead() {
   const xDominant = Math.abs(forward.x) >= Math.abs(forward.z);
   addRoadblockAt(ahead.x, ahead.z, xDominant);
 }
+
+function spawnGlassAhead() {
+  // Spawn a smashed-glass patch 18–32m in front of the car
+  const forward = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), heading);
+  const dist = 18 + Math.random() * 14;
+  const ahead = car.position.clone().addScaledVector(forward, dist);
+  addGlassAt(ahead.x, ahead.z);
+}
+
+/* ===== Dynamic obstacle spawners (aggressive) ===== */
+let rbTimer = 0, glassTimer = 0;
+// Start with short intervals, then jitter each spawn
+let rbPeriod = 1.2;     // seconds between roadblocks (randomized later)
+let glassPeriod = 0.9;  // seconds between glass spawns (randomized later)
+
+// Hard caps so we don't tank performance
+const MAX_OBSTACLES = 80;   // trash/rubbish roadblocks
+const MAX_GLASS     = 80;   // smashed-glass patches
+
+function removeOldestObstacle(){
+  const o = obstacles.shift();
+  if (o) scene.remove(o.mesh);
+}
+function removeOldestGlass(){
+  const g = glassHazards.shift();
+  if (g) scene.remove(g.mesh);
+}
+
+
 
 /* ===================== Drone prefab (for pursuers) ===================== */
 let DRONE_PREFAB = null;
@@ -1228,6 +2056,14 @@ function updateExplosions(dt){
 }
 
 /* ===================== Pursuer agents (drones) ===================== */
+
+/* ===== Drone chase tuning ===== */
+/* ===== Drone (constant-speed) tuning ===== */
+const DRONE_REL_SPAWN   = 0.97; // when spawning, lock at ~97% of player's *current* speed
+const DRONE_CRUISE_MIN  = 16;   // absolute floor (units/s)
+const DRONE_CRUISE_MAX  = 42;   // absolute cap (units/s)
+const DRONE_ACCEL       = 25;   // accel used by steering (units/s^2)
+const DRONE_LEAD_DIST   = 10;   // fixed lead distance in front of player (m)
 const agents = [];
 function spawnDrone(x, z) {
   let node, radius = 0.9;
@@ -1257,15 +2093,26 @@ function spawnDrone(x, z) {
   node.castShadow = true;
   scene.add(node);
 
-  const agent = {
-    mesh: node,
-    vel: new THREE.Vector3(),
-    maxSpeed: 11,
-    maxAccel: 18,
-    radius,
-    isDrone: true,
-    hoverPhase: Math.random()*Math.PI*2
-  };
+  // lock a constant cruise speed when the drone is created
+const initPlayerSpeed = Math.abs(speed);
+const cruise = THREE.MathUtils.clamp(
+  (initPlayerSpeed || DRONE_CRUISE_MIN) * DRONE_REL_SPAWN,
+  DRONE_CRUISE_MIN,
+  DRONE_CRUISE_MAX
+);
+
+const agent = {
+  mesh: node,
+  vel: new THREE.Vector3(),
+  cruiseSpeed: cruise,         // <— constant per drone
+  maxSpeed: cruise,            // steering uses this as the cap
+  maxAccel: DRONE_ACCEL,       // stronger chase
+  radius,
+  isDrone: true,
+  hoverPhase: Math.random()*Math.PI*2
+};
+
+
   agents.push(agent);
   return agent;
 }
@@ -1301,37 +2148,55 @@ function avoidanceAccel(pos, maxAccel) {
   return out;
 }
 function updateAgents(dt) {
-  const carForward = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), heading);
-  const prediction = car.position.clone().addScaledVector(carForward, 4 + Math.abs(speed)*0.5);
+  // Predict a point a fixed distance in front of the player (no speed coupling)
+  const up = new THREE.Vector3(0, 1, 0);
+  const carForward = new THREE.Vector3(1, 0, 0).applyAxisAngle(up, heading);
+  const prediction = car.position.clone().addScaledVector(carForward, DRONE_LEAD_DIST);
 
-  for (let i=agents.length-1; i>=0; i--) {
+  for (let i = agents.length - 1; i >= 0; i--) {
     const a = agents[i];
+    if (!a.vel) a.vel = new THREE.Vector3();
 
-    // Seek
-    const desired = prediction.clone().sub(a.mesh.position.clone().setY(car.position.y)).setY(0);
+    // --- CONSTANT SPEED: lock each drone to its cruise speed ---
+    if (a.cruiseSpeed == null) {
+      // fallback in case an old drone was spawned before we added cruiseSpeed
+      a.cruiseSpeed = Math.max(DRONE_CRUISE_MIN, Math.min(DRONE_CRUISE_MAX, a.maxSpeed || DRONE_CRUISE_MIN));
+    }
+    a.maxSpeed = a.cruiseSpeed;   // cap is constant
+    a.maxAccel = DRONE_ACCEL;     // strong steering accel
+
+    // --- Seek the predicted point + avoid obstacles (XZ only) ---
+    const desired = prediction.clone()
+      .sub(new THREE.Vector3(a.mesh.position.x, car.position.y, a.mesh.position.z))
+      .setY(0);
+
     const dist = desired.length();
     if (dist > 1e-6) desired.multiplyScalar(a.maxSpeed / dist);
 
-    const steer = desired.sub(a.vel).add( avoidanceAccel(a.mesh.position, a.maxAccel) );
+    const avoid = avoidanceAccel(a.mesh.position, a.maxAccel);
+    const steer = desired.sub(a.vel).add(avoid);
     const sl = steer.length(); if (sl > a.maxAccel) steer.multiplyScalar(a.maxAccel / sl);
 
     a.vel.addScaledVector(steer, dt);
     const vl = a.vel.length(); if (vl > a.maxSpeed) a.vel.multiplyScalar(a.maxSpeed / vl);
 
-    const proposed2D = new THREE.Vector3(a.mesh.position.x, 0, a.mesh.position.z).addScaledVector(new THREE.Vector3(a.vel.x,0,a.vel.z), dt);
+    // integrate on ground plane, then resolve circle collisions
+    const proposed2D = new THREE.Vector3(a.mesh.position.x, 0, a.mesh.position.z)
+      .addScaledVector(new THREE.Vector3(a.vel.x, 0, a.vel.z), dt);
     const fixed2D = resolveCircleCollisions(proposed2D, a.radius);
     a.mesh.position.x = fixed2D.x;
     a.mesh.position.z = fixed2D.z;
 
     if (a.vel.lengthSq() > 0.01) a.mesh.rotation.y = Math.atan2(a.vel.z, a.vel.x);
 
-    // Drone hover/bob
+    // hover/bob
     if (a.isDrone) {
-      a.hoverPhase += dt*2.5;
-      a.mesh.position.y = 0.8 + Math.sin(a.hoverPhase)*0.12;
+      a.hoverPhase += dt * 2.5;
+      a.mesh.position.y = 0.8 + Math.sin(a.hoverPhase) * 0.12;
     }
   }
 }
+
 
 /* ========= Car ↔ Drone collisions + player damage + explosion/respawn ========= */
 let health = 100;
@@ -1384,6 +2249,7 @@ function handleCarAgentCollisions(dt){
       }
 
       // === Drone-specific: explode, remove, and respawn nearby ===
+      playExplosionSfx();  //  play your 'drone-explosion.wav'
       spawnExplosion(a.mesh.position.clone());
       removeAgent(a);
       spawnDroneNearPlayer(12, 20);
@@ -1422,7 +2288,13 @@ const spawnZ = zs[Math.floor(zs.length/2)];
 const firstRoadStartX = (-MAP_HALF) + ROAD_LEN;
 const carStartX = firstRoadStartX - 0.4*ROAD_LEN;
 let firstPerson = true;
+let thirdPersonFront = false;   // when true, third-person camera is in front of the car
 let heading = 0;
+// Third-person free-orbit (RMB) state
+let tpOrbiting = false;
+let orbitYaw   = Math.PI;                               // 180° = behind by default
+let orbitPitch = THREE.MathUtils.degToRad(25);          // slight downward view
+let orbitDist  = 7.2;                                   // meters
 car.position.set(carStartX, 0, spawnZ);
 car.rotation.y = heading;
 
@@ -1482,6 +2354,24 @@ function dropParcel(){
   el.addEventListener('transitionend', ()=>{ el.remove(); showToast('parcel received, head to the destination', 3000); }, { once:true });
 }
 
+// --- SFX: drone explosion (separate instance each time so overlaps work) ---
+const EXPLOSION_SFX_PATH = 'assets/sounds/drone-explosion.wav';
+function playExplosionSfx() {
+  const s = new Audio(EXPLOSION_SFX_PATH);
+  s.volume = 0.7;  // tweak loudness
+  s.play().catch(()=>{}); // ignore autoplay race conditions
+}
+
+// --- SFX: button click ---
+const BUTTON_CLICK_SFX_PATH = 'assets/sounds/button-click.mp3';
+function playButtonClickSfx() {
+  const s = new Audio(BUTTON_CLICK_SFX_PATH);
+  s.volume = 0.5; // adjust to taste
+  s.play().catch(()=>{}); // ignore autoplay errors
+}
+
+
+
 /* ===================== Helpers ===================== */
 function getNearbyAABBs(cx, cz, radius = 50) {
   const out = [];
@@ -1510,7 +2400,12 @@ function resolveCircleCollisions(pos, radius) {
   }
   return pos;
 }
-function resolveCarCollisions(proposed) { return resolveCircleCollisions(proposed, 0.9); }
+function resolveCarCollisions(proposed) {
+  // While ghosted, don’t push the car out of AABBs (buildings/blocks)
+  if (isGhostActive()) return proposed;
+  return resolveCircleCollisions(proposed, 0.8);
+}
+
 
 /* ===================== Bootstrap flow ===================== */
 async function bootstrap(){
@@ -1532,8 +2427,12 @@ async function bootstrap(){
     // Load the goal flag model
   await loadGoalPrefab();
 
+    // Load power box prefab
+  await loadPowerBoxPrefab();
+
+
   // Create a destination & breadcrumb trail
-  spawnGoalAndTrail();
+  //spawnGoalAndTrail();
   
 
 
@@ -1549,6 +2448,7 @@ async function bootstrap(){
     streamingEnabled=true;
   }).catch(()=>{ streamingEnabled=true; });
 
+  /*
   // Demo obstacles + one drone
   addRoadblockAt(carStartX + ROAD_LEN*1.5, spawnZ, true);
   addRoadblockAt(carStartX + ROAD_LEN*3.0, spawnZ, true);
@@ -1556,6 +2456,7 @@ async function bootstrap(){
 
     // Example hazard near spawn
   addGlassAt(carStartX + ROAD_LEN*2, spawnZ);
+  */
 
 }
 
@@ -1563,17 +2464,107 @@ bootstrap();
 
 /* ===================== Controls & movement ===================== */
 const keys=new Set();
-addEventListener('keydown', e=>{
-  if (['KeyW','KeyA','KeyS','KeyD','KeyC','KeyL','KeyN','KeyH','KeyR','KeyP','KeyB','KeyE'].includes(e.code)) e.preventDefault();
-  keys.add(e.code);
+// Map WASD only while the reversed-controls effect is active
+function mapReversedCode(code) {
+  if (!isReversedActive()) return code;
+  if (code === 'KeyW') return 'KeyS';
+  if (code === 'KeyS') return 'KeyW';
+  if (code === 'KeyA') return 'KeyD';
+  if (code === 'KeyD') return 'KeyA';
+  return code;
+}
+
+addEventListener('keydown', (e) => {
+  // keep your original preventDefault list
+  if (['KeyW','KeyA','KeyS','KeyD','KeyC','KeyL','KeyN','KeyH','KeyR','KeyP','KeyB','KeyE','KeyZ'].includes(e.code)) e.preventDefault();
+  keys.add(mapReversedCode(e.code));
 });
-addEventListener('keyup', e=> keys.delete(e.code));
+
+addEventListener('keyup', (e) => {
+  keys.delete(mapReversedCode(e.code));
+});
+
+
+// ===== Third-person free-orbit with RMB =====
+let lastMX = 0, lastMY = 0;
+
+addEventListener('contextmenu', (e)=> e.preventDefault()); // disable RMB menu over canvas
+
+addEventListener('mousedown', (e)=>{
+  if (e.button !== 2) return;           // only right mouse button
+  if (firstPerson) return;              // only in 3rd-person
+  tpOrbiting = true;
+
+  // Initialize orbit angles from current camera position around the car
+  const target = car.position.clone().add(new THREE.Vector3(0, 0.9, 0));
+  const rel = camera.position.clone().sub(target);
+  const rxy = Math.hypot(rel.x, rel.z);
+  orbitYaw   = Math.atan2(rel.z, rel.x);          // around Y
+  orbitPitch = Math.atan2(rel.y, rxy);            // up/down
+  orbitDist  = Math.max(2.5, rel.length());       // keep current distance
+
+  lastMX = e.clientX; lastMY = e.clientY;
+});
+
+addEventListener('mousemove', (e)=>{
+  if (!tpOrbiting) return;
+  const dx = e.clientX - lastMX;
+  const dy = e.clientY - lastMY;
+  lastMX = e.clientX; lastMY = e.clientY;
+
+  const YAW_SENS   = 0.0032;
+  const PITCH_SENS = 0.0025;
+
+  orbitYaw   -= dx * YAW_SENS;                                // drag left/right
+  orbitPitch = THREE.MathUtils.clamp(                         // drag up/down
+    orbitPitch - dy * PITCH_SENS,
+    THREE.MathUtils.degToRad(-5),  // don’t go below horizon too much
+    THREE.MathUtils.degToRad(80)   // don’t flip over the top
+  );
+});
+
+addEventListener('mouseup', (e)=>{
+  if (e.button === 2) tpOrbiting = false;
+});
+
+// Optional: zoom while orbiting with the wheel (ignored when not orbiting)
+addEventListener('wheel', (e)=>{
+  if (!tpOrbiting) return;
+  orbitDist = THREE.MathUtils.clamp(orbitDist + Math.sign(e.deltaY) * 0.6, 3.5, 14.0);
+}, { passive:true });
+
 
 let speed=0; const params={ accel:8.0, brake:12.0, reverseAccel:6.0, maxFwd:14.0, maxRev:6.0, friction:3.5, steerRate:1.8, minSteerFactor:0.35 };
 const camTarget=new THREE.Vector3(); const FP_EYE_OFFSET=new THREE.Vector3(0.05,1.55,0.12);
 
 function update(dt){
   if (!gameStarted) return;
+
+  if (paused) { speed = 0; return; }
+
+  // End ghost mode when its timer is up
+if (isGhostMode && !isGhostActive()) {
+  endGhostMode();
+}
+
+// End reversed-controls when its timer is up
+if (reversedControls && !isReversedActive()) {
+  endReversed();
+}
+
+
+
+
+  // timer (only when playing)
+if (!paused && timeLeft > 0) {
+  timeLeft -= dt;
+  updateObjectiveHUD();
+  if (timeLeft <= 0) {
+    endLevel(false);
+    return; // stop further updates this frame (it will restart)
+  }
+}
+
 
   if (keys.has('KeyW')) speed += params.accel * dt;
   else if (keys.has('KeyS')) speed += (speed>0 ? -params.brake : -params.reverseAccel) * dt;
@@ -1607,19 +2598,27 @@ function update(dt){
   if (keys.has('KeyR')) { keys.delete('KeyR'); /* reserved */ }
   if (keys.has('KeyP')) { dropParcel(); keys.delete('KeyP'); }
   if (keys.has('KeyB')) { spawnRoadblockAhead(); keys.delete('KeyB'); }
+ // Z -> toggle between reverse (front camera looking back) and normal (behind)
+// Always switch to third-person when Z is pressed.
+if (keys.has('KeyZ')) {
+  firstPerson = false;                    // ensure we're in 3rd person
+  thirdPersonFront = !thirdPersonFront;   // <— toggle the view
+  if (document.pointerLockElement) document.exitPointerLock();
+  keys.delete('KeyZ');
+}
+
+
+if (keys.has('KeyV')) { thirdPersonFront = !thirdPersonFront; keys.delete('KeyV'); }
+
+
   if (keys.has('KeyE')) { spawnDroneBehind();    keys.delete('KeyE'); }
 
   if (keys.has('KeyN')) {
-    keys.delete('KeyN');
-    const toNight = sun.intensity > 0.3;
-    if (toNight) {
-      sun.intensity = 0.04; amb.intensity = 0.06; renderer.toneMappingExposure = 1.15; scene.background.set(0x04050a);
-      setStreetLights(true); setHeadlights(true);
-    } else {
-      sun.intensity = 0.8; amb.intensity = 0.45; renderer.toneMappingExposure = 1.0; scene.background.set(0x101018);
-      setStreetLights(true); setHeadlights(true);
-    }
-  }
+  keys.delete('KeyN');
+  const toNight = sun.intensity > 0.3;
+  if (toNight) setNight(); else setDay();
+}
+
 
   updateStreaming(performance.now());
 
@@ -1635,16 +2634,36 @@ function update(dt){
     camera.position.lerp(eye, 0.25);
     camTarget.copy(eye).addScaledVector(forward, 20); camTarget.y += 0.10; camera.lookAt(camTarget);
   } else {
-    const off = new THREE.Vector3(-6.5,3.0,0.0).applyAxisAngle(new THREE.Vector3(0,1,0), heading);
+  // Third-person: normal follow OR temporary free-orbit when RMB is held
+  const target = camTarget.copy(car.position).add(new THREE.Vector3(0, 0.9, 0));
+
+  if (tpOrbiting) {
+    // Free-orbit around the car (doesn't affect driving)
+    const cp = Math.cos(orbitPitch), sp = Math.sin(orbitPitch);
+    const ox = Math.cos(orbitYaw) * orbitDist * cp;
+    const oy = sp * orbitDist;
+    const oz = Math.sin(orbitYaw) * orbitDist * cp;
+
+    const desired = target.clone().add(new THREE.Vector3(ox, oy, oz));
+    camera.position.lerp(desired, 0.18);      // smooth
+    camera.lookAt(target);
+  } else {
+    // Normal follow (your existing behind/front views)
+    const localOffset = thirdPersonFront
+      ? new THREE.Vector3(+6.5, 2.8, 0.0)    // in front, looking back
+      : new THREE.Vector3(-6.5, 3.0, 0.0);    // behind, looking forward
+    const off = localOffset.applyAxisAngle(new THREE.Vector3(0,1,0), heading);
+
     camera.position.lerp(car.position.clone().add(off), 0.08);
-    camTarget.copy(car.position).addScaledVector(forward, 4.0);
-    camera.lookAt(camTarget);
+    camera.lookAt(target);
   }
+}
 
   // car velocity for collision math
   carVelVec.copy(forward).multiplyScalar(speed);
 
-    // === Glass hazard slowdown ===
+  // === Glass hazard slowdown ===
+if (!isGhostActive()) {
   for (const g of glassHazards) {
     const aabb = g.aabb;
     if (
@@ -1652,6 +2671,30 @@ function update(dt){
       car.position.z >= aabb.minZ && car.position.z <= aabb.maxZ
     ) {
       speed *= 0.92; // apply slowdown factor each frame on glass
+    }
+  }
+}
+
+
+    // ----- Dynamic obstacle spawning (runs while driving) -----
+  // Only spawn when moving a bit (prevents spam while stationary in a corner)
+  if (Math.abs(speed) > 2.0) {
+    rbTimer += dt;
+    glassTimer += dt;
+
+    if (rbTimer >= rbPeriod) {
+      // keep population under control
+      if (obstacles.length >= MAX_OBSTACLES) removeOldestObstacle();
+      spawnRoadblockAhead();
+      rbTimer = 0;
+      rbPeriod = THREE.MathUtils.randFloat(0.7, 1.4); // jitter next interval
+    }
+
+    if (glassTimer >= glassPeriod) {
+      if (glassHazards.length >= MAX_GLASS) removeOldestGlass();
+      spawnGlassAhead();
+      glassTimer = 0;
+      glassPeriod = THREE.MathUtils.randFloat(0.6, 1.2); // jitter next interval
     }
   }
 
@@ -1662,6 +2705,49 @@ function update(dt){
   // explosions update
   updateExplosions(dt);
 
+  // === Goal arrival check ===
+if (goalNode){
+  const gx = goalNode.position.x, gz = goalNode.position.z;
+  const dx = car.position.x - gx, dz = car.position.z - gz;
+  if (dx*dx + dz*dz <= GOAL_REACH_RADIUS*GOAL_REACH_RADIUS) {
+    onReachGoal();
+  }
+}
+
+  // === Power box collection ===
+  for (let i = powerBoxes.length - 1; i >= 0; i--) {
+    const pb = powerBoxes[i];
+    const a = pb.aabb;
+      // use the car’s radius so grazing contact counts
+  if (circleAABBResolve(car.position.x, car.position.z, CAR_RADIUS * 0.95, a)) {
+
+      // collected!
+      scene.remove(pb.mesh);
+      powerBoxes.splice(i, 1);
+      // random effect: 50/50 ghost vs reversed
+      if (Math.random() < 0.5) {
+        showToast('yellow box: GHOST MODE!', 1400);
+        activateGhostMode(5000);
+      } else {
+        showToast('yellow box: REVERSED CONTROLS!', 1400);
+        activateReversed(3000);
+      }
+
+    }
+  }
+  // Stream new yellow boxes along the path at long intervals
+tickPowerBoxProgress();
+
+
+
+// Health loss condition
+if (health <= 0 && failUI.style.display === 'none') {
+  showFailMenu('Vehicle destroyed!');
+  return;
+}
+
+
+
   // minimap
   refreshVisibleSegments(); drawMinimap();
 }
@@ -1671,7 +2757,11 @@ let last=performance.now(), dynDPR=START_DPR; const DPR_MIN=0.8, DPR_MAX=Math.mi
 let fpsMeasureT=0, fpsFrames=0;
 function tick(now=performance.now()){
   const dt=Math.min(0.033, (now-last)/1000); last=now;
-  update(dt); renderer.render(scene, camera);
+  update(dt);
+  // Keep the sky centered on the camera to avoid ever touching the far plane
+sky.mesh.position.copy(camera.position);
+
+   renderer.render(scene, camera);
   fpsFrames++; if(!fpsMeasureT) fpsMeasureT=now; const elapsed=now-fpsMeasureT;
   if (elapsed>500){ const fps=(fpsFrames*1000)/elapsed; fpsFrames=0; fpsMeasureT=now;
     if (fps<45 && dynDPR>DPR_MIN){ dynDPR=Math.max(DPR_MIN, dynDPR-0.1); renderer.setPixelRatio(dynDPR); }
@@ -1686,6 +2776,99 @@ addEventListener('resize', ()=>{
   renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(dynDPR);
   resizeMinimap();
 });
+
+// ===== Pause Menu Logic =====
+const pauseMenu = document.getElementById('pauseMenu');
+const btnQuitLevel = document.getElementById('btnQuitLevel');
+const btnInstructions = document.getElementById('btnInstructions');
+let isPaused = false;
+
+
+// Toggle pause when ESC is pressed
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && gameStarted) {
+    isPaused = !isPaused;
+    pauseMenu.style.display = isPaused ? 'flex' : 'none';
+
+    // 🔊 Pause or resume engine loop only (leave bgMusic playing)
+    if (window.engineSound) {
+      if (isPaused) engineSound.pause();
+      else engineSound.play();
+    }
+  }
+});
+
+
+
+// Quit Level → return to Level Select
+btnQuitLevel.addEventListener('click', () => {
+  pauseMenu.style.display = 'none';
+  isPaused = false;
+  gameStarted = false;
+
+  // Hide in-game HUDs
+  document.getElementById('info').style.display = 'none';
+  document.getElementById('healthUI').style.display = 'none';
+  document.getElementById('minimap').style.display = 'none';
+  document.getElementById('objectiveUI').style.display = 'none';
+
+  // Show Level Select
+  document.getElementById('levelSelect').style.display = 'flex';
+   
+  // Quit Level → return to Level Select
+btnQuitLevel.addEventListener('click', () => {
+  pauseMenu.style.display = 'none';
+  isPaused = false;
+  gameStarted = false;
+
+  // Hide in-game HUDs
+  document.getElementById('info').style.display = 'none';
+  document.getElementById('healthUI').style.display = 'none';
+  document.getElementById('minimap').style.display = 'none';
+  document.getElementById('objectiveUI').style.display = 'none';
+
+  // Show Level Select
+  document.getElementById('levelSelect').style.display = 'flex';
+
+  // 🔊 Stop engine sound completely when quitting (bgMusic keeps playing)
+  if (window.engineSound) engineSound.pause();
+});
+
+
+});
+
+// Instructions & Controls → open the same in-game modal as the home screen button
+btnInstructions.addEventListener('click', () => {
+  pauseMenu.style.display = 'none';
+  isPaused = true; // keep game paused while modal is open
+
+  const modalEl = document.getElementById('modal');
+  const modalTitle = document.getElementById('modal-title');
+  const modalContent = document.getElementById('modal-content');
+
+  modalTitle.textContent = 'Instructions & Controls';
+  modalContent.innerHTML = `
+    <p>Drive through the city grid, avoid buildings/roadblocks, and evade pursuers.</p>
+    <ul>
+      <li><b>Move:</b> <span class="kbd">W</span> accelerate, <span class="kbd">S</span> brake/reverse</li>
+      <li><b>Steer:</b> <span class="kbd">A</span> / <span class="kbd">D</span></li>
+      <li><b>Camera:</b> <span class="kbd">C</span> (first/third person)</li>
+      <li><b>Lights:</b> <span class="kbd">H</span> headlights, <span class="kbd">L</span> street lamps</li>
+      <li><b>Day/Night:</b> <span class="kbd">N</span></li>
+      <li><b>Extras:</b> <span class="kbd">R</span> replace nearby placeholders, <span class="kbd">P</span> parcel drop, <span class="kbd">B</span> roadblock ahead, <span class="kbd">E</span> pursuer</li>
+    </ul>
+  `;
+  modalEl.style.display = 'grid';
+});
+
+
+// Freeze updates while paused
+const originalUpdate = update;
+update = function (dt) {
+  if (isPaused) return;
+  originalUpdate(dt);
+};
+
 </script>
 </body>
 </html>
