@@ -135,6 +135,11 @@
   background:#1a2230; color:#e4edf6; font:600 14px system-ui; cursor:pointer;
   text-align:center; line-height:1.2;"></button>
 
+<button id="lvlBtn3" style="padding:14px 16px; min-height:64px; border-radius:10px; border:1px solid #2c3442;
+  background:#1a2230; color:#e4edf6; font:600 14px system-ui; cursor:pointer;
+  text-align:center; line-height:1.2;"></button>
+
+
     </div>
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
@@ -257,6 +262,9 @@
 
 <div id="toast" aria-live="polite"></div>
 
+<!-- Confetti (no download needed) -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
 
 <script type="module">
 import * as THREE from 'three';
@@ -319,6 +327,10 @@ const GOAL_FLAG_GLB = 'Goal Flag.glb';
 /* Paver (ground) */
 const PAVER_GLB = 'flagstone paver.glb';
 
+/* Rescue target (person to reach) */
+const RESCUE_GLB = 'Punk.glb';
+
+
 // === Background Music Setup ===
 const bgMusic = new Audio('assets/sounds/background-music.mp3');
 bgMusic.loop = true;
@@ -364,6 +376,8 @@ const levelSelectEl = document.getElementById('levelSelect');
 const btnLvl0 = document.getElementById('lvlBtn0');
 const btnLvl1 = document.getElementById('lvlBtn1');
 const btnLvl2 = document.getElementById('lvlBtn2');
+const btnLvl3 = document.getElementById('lvlBtn3');
+
 const btnBackStart = document.getElementById('btnBackStart');
 
 // Failure UI
@@ -376,11 +390,13 @@ const btnBackLevels = document.getElementById('btnBackLevels');
 // Keep labels synced with LEVELS[]
 function refreshLevelSelectLabels(){
   // No window.LEVELS guard — module scope variables aren't on window
-  const desc = [
-    '3 goals, 3:00 timer, no pursuers, day.',
-    '4 goals, 2:30, 1 pursuer, night + lamps on.',
-    '5 goals, 2:30, 2–3 pursuers, extra roadblocks.'
-  ];
+ const desc = [
+  '3 goals, 3:00 timer, no pursuers, day.',
+  '4 goals, 2:30, 1 pursuer, night + lamps on.',
+  '5 goals, 2:30, 2–3 pursuers, extra roadblocks.',
+  'Find Pieter Steph — 1 target, 2:30, 3 pursuers (rescue).'
+];
+
 
   const setBtn = (btn, idx) => {
     const L = LEVELS[idx]; // direct reference; LEVELS is in the same module
@@ -394,6 +410,8 @@ function refreshLevelSelectLabels(){
   setBtn(btnLvl0, 0);
   setBtn(btnLvl1, 1);
   setBtn(btnLvl2, 2);
+  setBtn(btnLvl3, 3);
+
 }
 
 
@@ -408,29 +426,87 @@ function openModal(title, html){ modalTitle.textContent = title; modalContent.in
 function closeModal(){ modalEl.style.display = 'none'; }
 /* ===== Credits data ===== */
 const CREDITS = [
+  // Objects & textures
   { title: "Small Building by Kenney", url: "https://poly.pizza/m/QjL4Fo9dU9", note: "" },
   { title: "Large Building by Kenney", url: "https://poly.pizza/m/yKo7F36Qk2", note: "" },
   { title: "Pickup Truck by Quaternius", url: "https://poly.pizza/m/qn4grQgHm8", note: "" },
-  { title: "Anti-Gravity Drone by Adam Marc Williams", url: "https://poly.pizza/m/fiYuC73Xlwp", note: "License: CC-BY 3.0" },
-  { title: "Smashed Glass by AlexCrean", url: "https://poly.pizza/m/s5z0Wvs1Wi", note: "License: CC-BY 3.0" },
-  { title: "Rubbish by Poly by Google", url: "https://poly.pizza/m/fxU6_KtzTiX", note: "License: CC-BY 3.0" },
+  { title: "Anti-Gravity Drone by Adam Marc Williams", url: "https://poly.pizza/m/fiYuC73Xlwp", note: "CC-BY 3.0 · via Poly Pizza" },
+  { title: "Smashed Glass by AlexCrean", url: "https://poly.pizza/m/s5z0Wvs1Wi", note: "CC-BY 3.0 · via Poly Pizza" },
+  { title: "Rubbish by Poly by Google", url: "https://poly.pizza/m/fxU6_KtzTiX", note: "CC-BY 3.0 · via Poly Pizza" },
   { title: "Goal Flag by Quaternius", url: "https://poly.pizza/m/onAi7dx56P", note: "" },
+  { title: "?-Block by Studio Creality", url: "https://poly.pizza/m/dIC3dNIL84K", note: "CC-BY 3.0 · via Poly Pizza" },
+  { title: "Concrete pavement texture", url: "https://polyhaven.com/a/concrete_pavement", note: "" },
+
+  // Sound effects & music
+  { title: "Car engine (loop)", url: "https://freesound.org/people/Dmitry_mansurev64/sounds/748027/", note: "" },
+  { title: "Car engine start", url: "https://freesound.org/people/Grasopt/sounds/479351/", note: "" },
+  { title: "Drone explosion", url: "https://freesound.org/people/modusmogulus/sounds/792520/", note: "" },
+  { title: "Background music", url: "https://freesound.org/people/DominikBraun/sounds/483502/", note: "" },
+  { title: "Success sound", url: "https://freesound.org/people/Unlistenable/sounds/391540/", note: "" },
+
+  // Libraries
   { title: "three.js (WebGL library)", url: "https://threejs.org/", note: "" }
 ];
 
-btnInstr.addEventListener('click', ()=>{
-  openModal('Instructions & Controls', `
-    <p>Drive through the city grid, avoid buildings/roadblocks, and evade pursuers.</p>
+// ===== Full Instructions / Lore HTML =====
+const INSTRUCTIONS_HTML = `
+<h2> Game Background – “Extraction”</h2>
+<p>
+Your closest friend, <strong>Pieter Steph</strong>, has been <strong>kidnapped by the Italian Mafia</strong>. With no ransom money and no leads, you turn to the underworld for help. A shadowy smuggling syndicate agrees to aid your search — but not for free.<br><br>
+To earn their trust, you must complete a series of high-risk <strong>delivery missions</strong> across a sprawling, crime-ridden city. The cargo you carry is fragile and highly illegal. Any delay or damage could cost you your only chance to save your friend.<br><br>
+Complete all assignments and survive the gauntlet, and the syndicate will finally reveal <strong>Pieter Steph’s last known location</strong>.
+</p>
+
+<hr>
+
+<h2> How to Play</h2>
+<ul>
+  <li><strong>Objective:</strong> Complete all deliveries before the timer runs out. Each successful delivery earns time and progress toward uncovering Pieter Steph’s whereabouts.</li>
+  <li><strong>Controls:</strong> Drive your truck through the city streets, following the road network to reach the delivery goal (marked with a bright beacon). Completing a delivery adds <strong>+30 seconds</strong> to your remaining time.</li>
+  <li><strong>Avoid Damage:</strong> Crashing into buildings, streetlights, and obstacles slows you down and risks losing control of your vehicle.</li>
+  <li><strong>Hazards – Broken Glass:</strong> Scattered across the city are patches of broken glass. Driving over them temporarily <strong>slows your vehicle</strong> and reduces handling precision — leaving you exposed to enemy drones.</li>
+  <li><strong>Power-Ups – Yellow Cube:</strong> The yellow cube is a mysterious experimental object left by the syndicate. Collecting it triggers one of two effects:
     <ul>
-      <li><b>Move:</b> <span class="kbd">W</span> accelerate, <span class="kbd">S</span> brake/reverse</li>
-      <li><b>Steer:</b> <span class="kbd">A</span> / <span class="kbd">D</span></li>
-      <li><b>Camera:</b> <span class="kbd">C</span> (first/third person)</li>
-      <li><b>Lights:</b> <span class="kbd">H</span> headlights, <span class="kbd">L</span> street lamps</li>
-      <li><b>Day/Night:</b> <span class="kbd">N</span></li>
-      <li><b>Extras:</b> <span class="kbd">R</span> replace nearby placeholders, <span class="kbd">P</span> parcel drop, <span class="kbd">B</span> roadblock ahead, <span class="kbd">E</span> pursuer</li>
+      <li><em>Reversed Controls:</em> Steering briefly inverts, making handling unpredictable.</li>
+      <li><em>Ghost Mode:</em> Your truck temporarily <strong>phases through obstacles</strong> and street debris — a short, powerful escape window.</li>
     </ul>
-  `);
+    Use these effects wisely; both can change the course of a chase.
+  </li>
+  <li><strong>Enemy Drones:</strong> Patrol drones relentlessly track your position. They can <strong>phase through obstacles</strong> to maintain pursuit, and any collision destroys your truck.</li>
+  <li><strong>Timer:</strong> If time reaches zero, the mission fails. Each successful delivery extends your time, but every crash or delay risks failure.</li>
+  <li><strong>Night Mode:</strong> Press <kbd>N</kbd> to toggle night lighting. Use headlights to navigate low-visibility areas.</li>
+  <li><strong>Mini-Map:</strong> The minimap in the lower-left shows your position, the blue delivery route, and approaching drones.</li>
+  <li><strong>Goal:</strong> Complete all deliveries in each level without being destroyed. After the <strong>third level</strong>, the gang will reveal Pieter Steph’s location.</li>
+</ul>
+
+<hr>
+
+<h2> Level Descriptions</h2>
+
+<h3>Level 1 – The Initiation</h3>
+<p>
+A quiet industrial district with open roads. Drones are few and slow. Learn the layout, get comfortable with handling, and make your first deliveries on time.
+</p>
+
+<h3>Level 2 – Urban Pressure</h3>
+<p>
+Busier city center with tighter turns, more debris, and faster drones. Traffic barriers demand precision driving. Every second counts.
+</p>
+
+<h3>Level 3 – The Gauntlet</h3>
+<p>
+A high-security zone with coordinated drone pursuit and narrower streets. Complete these missions to uncover <strong>Pieter Steph’s location</strong> and the truth behind his disappearance.
+</p>
+`;
+
+
+
+
+
+btnInstr.addEventListener('click', ()=>{
+  openModal('Instructions & Controls', INSTRUCTIONS_HTML);
 });
+
 btnCreds.addEventListener('click', () => {
   // Build rows
   let rows = CREDITS.map((item) => {
@@ -508,6 +584,7 @@ resetPowerBoxProgress();
 btnLvl0.onclick = () => startSelectedLevel(0);
 btnLvl1.onclick = () => startSelectedLevel(1);
 btnLvl2.onclick = () => startSelectedLevel(2);
+btnLvl3.onclick = () => startSelectedLevel(3);
 btnBackStart.onclick = () => {
   levelSelectEl.style.display = 'none';
   startEl.style.display = 'grid'; // your #start-screen uses display:grid
@@ -690,6 +767,8 @@ const MAP_SIZE = 1200, MAP_HALF = MAP_SIZE/2;
 
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE), new THREE.MeshLambertMaterial({ color:0xcfcfcf }));
 ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+
+
 
 const divisions = Math.max(2, Math.round(MAP_SIZE/6));
 const grid = new THREE.GridHelper(MAP_SIZE, divisions, 0x000000, 0x000000);
@@ -1323,7 +1402,10 @@ const LEVELS = [
   { name:'Dawn Delivery',  goals:3, time:180, night:false, pursuers:0, roadblocks:1, glass:1 },
   { name:'Night Shift',    goals:4, time:150, night:true,  pursuers:1, roadblocks:2, glass:2 },
   { name:'Lockdown',       goals:5, time:150, night:true,  pursuers:3, roadblocks:3, glass:3 },
+  // Level 4: rescue Pieter Steph – 1 target, same time & pursuers as Level 3
+  { name:'The Rescue',     goals:1, time:150, night:true,  pursuers:3, roadblocks:3, glass:3 },
 ];
+
 
 let levelIndex = 0;
 let deliveries = 0;
@@ -1448,26 +1530,73 @@ function startLevel(i){
 
   // place first destination + bread-crumbs
   spawnGoalAndTrail();
-
+  // NEW: show the parcel drop + toast at level start
+  dropParcel();
   objectiveUI.style.display = 'block';
   updateObjectiveHUD();
 }
 
 function endLevel(success){
-  if (success){
-    showToast('Level complete!', 1600);
-    if (levelIndex+1 < LEVELS.length) {
-      setTimeout(()=> startLevel(levelIndex+1), 1100);
-    } else {
-      setTimeout(()=> showToast('All deliveries complete — GG! 🎉', 2600), 1000);
-    }
-  } else {
+  if (!success){
     showFailMenu("Time's up!");
+    return;
+  }
+
+  // Rescue level (Level 4 → index 3): win and auto-pause
+  if (levelIndex === 3) {
+    showToast('You found Pieter Steph! 🎉', 2200);
+
+    // Pause gameplay
+    isPaused = true;
+    paused = true;
+    speed = 0;
+
+    // Stop engine loop if playing
+    if (window.engineSound && typeof window.engineSound.pause === 'function') {
+      window.engineSound.pause();
+    }
+
+    // Show pause overlay as a victory screen
+    const pauseMenu = document.getElementById('pauseMenu');
+    if (pauseMenu) {
+      pauseMenu.style.display = 'flex';
+      const titleNode = pauseMenu.querySelector('h1');
+      if (titleNode) titleNode.textContent = 'Mission Complete';
+    }
+    return;
+  }
+
+  // Normal flow for Levels 1–3
+  showToast('Level complete!', 1600);
+  if (levelIndex + 1 < LEVELS.length) {
+    setTimeout(() => startLevel(levelIndex + 1), 1100);
+  } else {
+    setTimeout(() => showToast('All deliveries complete — GG! 🎉', 2600), 1000);
   }
 }
 
+
 function onReachGoal(){
   deliveries++;
+    //  Confetti on each goal
+  if (window.confetti) {
+    const base = { origin: { y: 0.6 }, gravity: 0.9 };
+    confetti({ particleCount: 160, spread: 70, startVelocity: 45, ...base });
+    setTimeout(() => confetti({ particleCount: 120, spread: 90, startVelocity: 36, ...base }), 220);
+  }
+
+    //  short success chime
+  playSuccessSfx();
+
+    //  Add 30 seconds to the timer if it hasn’t already run out
+  if (timeLeft > 0) {
+    timeLeft += 30;
+    updateObjectiveHUD(); // refresh the displayed time
+    showToast('+30s Bonus Time!', 1400);
+  }
+
+
+
   updateObjectiveHUD();
 
   const L = LEVELS[levelIndex];
@@ -1476,10 +1605,13 @@ function onReachGoal(){
   } else {
     // place another far goal
     const startSeg = nearestRoadCenter(car.position);
-    const targetSeg = randomFarRoad(DEST_MIN_DIST);
+    const targetSeg = randomFarRoad(DEST_MIN_DIST, DEST_MAX_DIST);
+ 
     if (startSeg && targetSeg) {
       placeGoalAt(targetSeg);
       buildOrthogonalPath(startSeg, targetSeg);
+      // NEW: show parcel received for the next delivery
+      dropParcel();
     }
   }
 }
@@ -1493,7 +1625,14 @@ let goalLight = null;
 const trailGroup = new THREE.Group(); scene.add(trailGroup);
 const trailLights = [];
 
-const DEST_MIN_DIST = ROAD_LEN * 8;         // how far the goal must be from the player spawn
+// Goal placement distances (closer, but not too close)
+const DEST_MIN_DIST = ROAD_LEN * 5;   // was *8 — closer than before
+const DEST_MAX_DIST = ROAD_LEN * 12;  // cap so goals aren’t *too* far
+
+// ----- Minimap breadcrumb trail -----
+const MINI_TRAIL = [];
+
+
 const TRAIL_STEP = 2.4;                     // spacing between breadcrumbs (meters)
 const TRAIL_DISC_SIZE = 0.9;                // visual size of breadcrumb
 const TRAIL_LIGHT_INTENSITY = 0.7;          // each breadcrumb’s soft glow
@@ -1532,6 +1671,44 @@ async function loadGoalPrefab() {
   });
 }
 
+/* ===== Load rescue (person) prefab ===== */
+let RESCUE_PREFAB = null;
+
+async function loadRescuePrefab() {
+  return new Promise((resolve) => {
+    new GLTFLoader().setPath(VEHICLE_PATH).load(
+      RESCUE_GLB,
+      (gltf) => {
+        const root = gltf.scene;
+        root.traverse(o => {
+          if (o.isMesh) {
+            o.castShadow = o.receiveShadow = true;
+            if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+          }
+        });
+
+        // Scale to human height (~1.8m)
+        const box = new THREE.Box3().setFromObject(root);
+        const size = new THREE.Vector3(); box.getSize(size);
+        const targetH = 1.8;
+        const s = targetH / Math.max(1e-6, size.y);
+        root.scale.setScalar(s);
+
+       // Sit on ground and lift slightly so it never clips
+        const box2 = new THREE.Box3().setFromObject(root);
+        root.position.y = -box2.min.y + BASE_HEIGHT + 0.28;
+
+
+        RESCUE_PREFAB = root;
+        resolve(true);
+      },
+      undefined,
+      () => resolve(false)
+    );
+  });
+}
+
+
 function nearestRoadCenter(pos){
   let best = null, bestD2 = Infinity;
   for (const s of roadSegments){
@@ -1542,15 +1719,19 @@ function nearestRoadCenter(pos){
   return best;
 }
 
-function randomFarRoad(minDist){
+function randomFarRoad(minDist, maxDist = Infinity){
   const choices = [];
+  const min2 = minDist * minDist;
+  const max2 = maxDist * maxDist;
   for (const s of roadSegments){
     const dx = s.x - car.position.x, dz = s.z - car.position.z;
-    if (Math.hypot(dx, dz) >= minDist) choices.push(s);
+    const d2 = dx*dx + dz*dz;
+    if (d2 >= min2 && d2 <= max2) choices.push(s);
   }
   if (!choices.length) return null;
   return choices[Math.random()*choices.length | 0];
 }
+
 
 function clearTrail(){
   // remove breadcrumbs + lights
@@ -1561,6 +1742,8 @@ function clearTrail(){
     if (c.geometry) c.geometry.dispose?.();
     if (c.material) c.material.dispose?.();
   }
+    // also clear the minimap copy
+  MINI_TRAIL.length = 0;
 }
 
 function addTrailMarker(x, z) {
@@ -1588,9 +1771,29 @@ function addTrailLine(x1, z1, x2, z2){
   for (let d = 0; d <= len; d += TRAIL_STEP){
     addTrailMarker(x1 + nx*d, z1 + nz*d);
   }
+    // ----- Minimap: sample this straight segment into 2D points -----
+  {
+    const dx2 = x2 - x1, dz2 = z2 - z1;
+    const dist = Math.hypot(dx2, dz2);
+
+    // roughly one point every ~ROAD_LEN/2; at least 2 points
+    const steps = Math.max(2, Math.round(dist / (ROAD_LEN * 0.5)));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = x1 + dx2 * t;
+      const z = z1 + dz2 * t;
+
+      // avoid duplicating the exact previous point
+      const last = MINI_TRAIL[MINI_TRAIL.length - 1];
+      if (!last || last.x !== x || last.y !== z) {
+        MINI_TRAIL.push(new THREE.Vector2(x, z)); // note: .y stores z
+      }
+    }
+  }
 }
 
 function buildOrthogonalPath(startSeg, targetSeg){
+  
   // Path = go along start row, then turn at a junction and go along column to the target.
   // If they are already aligned on x or z, it becomes a single leg.
   clearTrail();
@@ -1631,14 +1834,63 @@ function placeGoalAt(seg){
   goalLight = L;
 }
 
+function placeRescueAt(seg){
+  // remove previous goal if any
+  if (goalNode) { scene.remove(goalNode); goalNode = null; }
+  if (goalLight){ scene.remove(goalLight); goalLight = null; }
+
+  // Use the person model; fallback cone if load failed
+  const root = RESCUE_PREFAB ? RESCUE_PREFAB.clone(true)
+    : new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1.0, 8, 16),
+                     new THREE.MeshStandardMaterial({ color:0x3bb3ff, metalness:0.2, roughness:0.8 }));
+  root.position.set(seg.x, root.position.y, seg.z);
+  scene.add(root);
+  goalNode = root;
+
+   // --- add glow ring + brighter beacon ---
+  {
+    const ringGeo = new THREE.RingGeometry(0.35, 0.55, 32);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x6fc6ff,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(seg.x, BASE_HEIGHT + 0.015, seg.z);
+    scene.add(ring);
+  }
+
+  // Replace the point light with a taller, brighter locator beacon
+  if (goalLight) { scene.remove(goalLight); goalLight = null; }
+  const beacon = new THREE.SpotLight(0x88c6ff, 5.0, 26, THREE.MathUtils.degToRad(55), 0.45, 1.8);
+  beacon.position.set(seg.x, 6.0, seg.z);
+  const tgt = new THREE.Object3D();
+  tgt.position.set(seg.x, BASE_HEIGHT + 0.2, seg.z);
+  scene.add(tgt);
+  beacon.target = tgt;
+  scene.add(beacon);
+  goalLight = beacon;
+}
+
+
+
 function spawnGoalAndTrail(){
   // start at nearest road center to the car
   const startSeg = nearestRoadCenter(car.position);
-  const targetSeg = randomFarRoad(DEST_MIN_DIST);
+  const targetSeg = randomFarRoad(DEST_MIN_DIST, DEST_MAX_DIST);
+
   if (!startSeg || !targetSeg) return;
 
-  placeGoalAt(targetSeg);
+    if (levelIndex === 3) {
+    // Level 4: place the person instead of the flag
+    placeRescueAt(targetSeg);
+  } else {
+    placeGoalAt(targetSeg);
+  }
   buildOrthogonalPath(startSeg, targetSeg);
+
 }
 
 
@@ -2059,7 +2311,10 @@ function updateExplosions(dt){
 
 /* ===== Drone chase tuning ===== */
 /* ===== Drone (constant-speed) tuning ===== */
-const DRONE_REL_SPAWN   = 0.97; // when spawning, lock at ~97% of player's *current* speed
+const DRONE_REL_SPAWN   = 0.90; // when spawning, lock at ~97% of player's *current* speed
+// Drones ignore world/building/obstacle collisions (still collide with the player)
+const DRONES_PHASE = true;
+
 const DRONE_CRUISE_MIN  = 16;   // absolute floor (units/s)
 const DRONE_CRUISE_MAX  = 42;   // absolute cap (units/s)
 const DRONE_ACCEL       = 25;   // accel used by steering (units/s^2)
@@ -2173,7 +2428,7 @@ function updateAgents(dt) {
     const dist = desired.length();
     if (dist > 1e-6) desired.multiplyScalar(a.maxSpeed / dist);
 
-    const avoid = avoidanceAccel(a.mesh.position, a.maxAccel);
+    const avoid = DRONES_PHASE ? new THREE.Vector3() : avoidanceAccel(a.mesh.position, a.maxAccel);
     const steer = desired.sub(a.vel).add(avoid);
     const sl = steer.length(); if (sl > a.maxAccel) steer.multiplyScalar(a.maxAccel / sl);
 
@@ -2182,10 +2437,14 @@ function updateAgents(dt) {
 
     // integrate on ground plane, then resolve circle collisions
     const proposed2D = new THREE.Vector3(a.mesh.position.x, 0, a.mesh.position.z)
-      .addScaledVector(new THREE.Vector3(a.vel.x, 0, a.vel.z), dt);
-    const fixed2D = resolveCircleCollisions(proposed2D, a.radius);
-    a.mesh.position.x = fixed2D.x;
-    a.mesh.position.z = fixed2D.z;
+  .addScaledVector(new THREE.Vector3(a.vel.x, 0, a.vel.z), dt);
+
+// If phasing, accept the move directly; otherwise, resolve against buildings/obstacles
+const fixed2D = DRONES_PHASE ? proposed2D : resolveCircleCollisions(proposed2D, a.radius);
+
+a.mesh.position.x = fixed2D.x;
+a.mesh.position.z = fixed2D.z;
+
 
     if (a.vel.lengthSq() > 0.01) a.mesh.rotation.y = Math.atan2(a.vel.z, a.vel.x);
 
@@ -2329,22 +2588,97 @@ function refreshVisibleSegments(){
   }
 }
 function drawMinimap(){
-  const now=performance.now(); if (now - mmLastDraw < MM_DRAW_HZ) return; mmLastDraw = now;
-  const w=mm.clientWidth, h=mm.clientHeight; const cx=w/2, cz=h/2;
-  mmCtx.clearRect(0,0,w,h);
-  mmCtx.save(); mmCtx.beginPath(); mmCtx.arc(cx,cz,MINIMAP_RADIUS(),0,Math.PI*2); mmCtx.clip();
-  mmCtx.fillStyle='#202326'; mmCtx.fillRect(0,0,w,h);
-  const carX=car.position.x, carZ=car.position.z;
-  mmCtx.strokeStyle='rgba(210,210,210,0.85)'; mmCtx.lineCap='round'; const roadHalfW=(ROAD_WIDTH*MINIMAP_SCALE)*0.33; mmCtx.lineWidth=Math.max(2,roadHalfW);
-  const L=ROAD_LEN+JOIN_EPS;
-  for(const s of mmVisibleSegments){
-    if(s.isX){ const x1=(s.x - L/2 - carX)*MINIMAP_SCALE + cx; const x2=(s.x + L/2 - carX)*MINIMAP_SCALE + cx; const z=(s.z - carZ)*MINIMAP_SCALE + cz; mmCtx.beginPath(); mmCtx.moveTo(x1,z); mmCtx.lineTo(x2,z); mmCtx.stroke(); }
-    else     { const z1=(s.z - L/2 - carZ)*MINIMAP_SCALE + cz; const z2=(s.z + L/2 - carZ)*MINIMAP_SCALE + cz; const x=(s.x - carX)*MINIMAP_SCALE + cx; mmCtx.beginPath(); mmCtx.moveTo(x,z1); mmCtx.lineTo(x,z2); mmCtx.stroke(); }
+  const now = performance.now();
+  if (now - mmLastDraw < MM_DRAW_HZ) return;
+  mmLastDraw = now;
+
+  const w = mm.clientWidth, h = mm.clientHeight;
+  const cx = w/2, cz = h/2;
+
+  mmCtx.clearRect(0, 0, w, h);
+
+  // circular mask
+  mmCtx.save();
+  mmCtx.beginPath();
+  mmCtx.arc(cx, cz, MINIMAP_RADIUS(), 0, Math.PI * 2);
+  mmCtx.clip();
+
+  // background
+  mmCtx.fillStyle = '#202326';
+  mmCtx.fillRect(0, 0, w, h);
+
+  const carX = car.position.x, carZ = car.position.z;
+
+  // roads
+  mmCtx.strokeStyle = 'rgba(210,210,210,0.85)';
+  mmCtx.lineCap = 'round';
+  const roadHalfW = (ROAD_WIDTH * MINIMAP_SCALE) * 0.33;
+  mmCtx.lineWidth = Math.max(2, roadHalfW);
+
+  const L = ROAD_LEN + JOIN_EPS;
+  for (const s of mmVisibleSegments){
+    if (s.isX){
+      const x1 = (s.x - L/2 - carX) * MINIMAP_SCALE + cx;
+      const x2 = (s.x + L/2 - carX) * MINIMAP_SCALE + cx;
+      const z  = (s.z - carZ)        * MINIMAP_SCALE + cz;
+      mmCtx.beginPath(); mmCtx.moveTo(x1, z); mmCtx.lineTo(x2, z); mmCtx.stroke();
+    } else {
+      const z1 = (s.z - L/2 - carZ) * MINIMAP_SCALE + cz;
+      const z2 = (s.z + L/2 - carZ) * MINIMAP_SCALE + cz;
+      const x  = (s.x - carX)       * MINIMAP_SCALE + cx;
+      mmCtx.beginPath(); mmCtx.moveTo(x, z1); mmCtx.lineTo(x, z2); mmCtx.stroke();
+    }
   }
-  mmCtx.save(); mmCtx.beginPath(); mmCtx.arc(cx,cz,7,0,Math.PI*2); mmCtx.fillStyle='#17c964'; mmCtx.shadowColor='rgba(0,0,0,0.45)'; mmCtx.shadowBlur=6; mmCtx.fill(); mmCtx.lineWidth=2; mmCtx.strokeStyle='rgba(0,0,0,0.35)'; mmCtx.stroke(); mmCtx.restore();
-  mmCtx.beginPath(); mmCtx.arc(cx,cz,MINIMAP_RADIUS()-1,0,Math.PI*2); mmCtx.strokeStyle='rgba(255,255,255,0.06)'; mmCtx.lineWidth=2; mmCtx.stroke();
+
+  // ----- breadcrumb trail (blue polyline + soft dots) -----
+  if (MINI_TRAIL && MINI_TRAIL.length > 1){
+    // polyline
+    mmCtx.beginPath();
+    for (let i = 0; i < MINI_TRAIL.length; i++){
+      const sx = (MINI_TRAIL[i].x - carX) * MINIMAP_SCALE + cx;
+      const sz = (MINI_TRAIL[i].y - carZ) * MINIMAP_SCALE + cz; // Vector2.y stores world Z
+      if (i === 0) mmCtx.moveTo(sx, sz); else mmCtx.lineTo(sx, sz);
+    }
+    mmCtx.lineWidth = 3;
+    mmCtx.strokeStyle = '#5ec8ff';
+    mmCtx.globalAlpha = 0.95;
+    mmCtx.stroke();
+    mmCtx.globalAlpha = 1.0;
+
+    // dotted glow (every 2nd point)
+    for (let i = 0; i < MINI_TRAIL.length; i += 2){
+      const sx = (MINI_TRAIL[i].x - carX) * MINIMAP_SCALE + cx;
+      const sz = (MINI_TRAIL[i].y - carZ) * MINIMAP_SCALE + cz;
+      mmCtx.beginPath();
+      mmCtx.arc(sx, sz, 2, 0, Math.PI * 2);
+      mmCtx.fillStyle = '#9bdcff';
+      mmCtx.fill();
+    }
+  }
+
+  // player dot
+  mmCtx.save();
+  mmCtx.beginPath();
+  mmCtx.arc(cx, cz, 7, 0, Math.PI * 2);
+  mmCtx.fillStyle = '#17c964';
+  mmCtx.shadowColor = 'rgba(0,0,0,0.45)';
+  mmCtx.shadowBlur = 6;
+  mmCtx.fill();
+  mmCtx.lineWidth = 2;
+  mmCtx.strokeStyle = 'rgba(0,0,0,0.35)';
+  mmCtx.stroke();
+  mmCtx.restore();
+
+  // rim
+  mmCtx.beginPath();
+  mmCtx.arc(cx, cz, MINIMAP_RADIUS() - 1, 0, Math.PI * 2);
+  mmCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+  mmCtx.lineWidth = 2;
+  mmCtx.stroke();
+
   mmCtx.restore();
 }
+
 
 /* ===================== Parcel drop + toast ===================== */
 function showToast(message, ms=3000){ const t=document.getElementById('toast'); t.textContent=message; t.classList.add('show'); setTimeout(()=> t.classList.remove('show'), ms); }
@@ -2369,6 +2703,15 @@ function playButtonClickSfx() {
   s.volume = 0.5; // adjust to taste
   s.play().catch(()=>{}); // ignore autoplay errors
 }
+
+// --- SFX: goal reached ---
+const SUCCESS_SFX_PATH = 'assets/sounds/success-sound.wav';
+function playSuccessSfx() {
+  const s = new Audio(SUCCESS_SFX_PATH);
+  s.volume = 0.7; // tweak to taste
+  s.play().catch(()=>{}); // ignore autoplay race conditions
+}
+
 
 
 
@@ -2427,8 +2770,52 @@ async function bootstrap(){
     // Load the goal flag model
   await loadGoalPrefab();
 
+    // Load rescue person model
+  await loadRescuePrefab();
+
+
     // Load power box prefab
   await loadPowerBoxPrefab();
+
+// === Apply concrete texture to NON-ROAD ground (robust baseline) ===
+{
+  const loader = new THREE.TextureLoader();
+  const url = 'textures/textures/concrete_pavement_diff_4k.jpg';
+
+
+  // 1) start with a visible, lighting-independent baseline (cannot be black)
+  ground.material = new THREE.MeshBasicMaterial({ color: 0x666666 }); // DEBUG baseline
+  ground.material.needsUpdate = true;
+
+  // 2) now try to load & apply the texture; keep BasicMaterial so lighting can't make it black
+  loader.load(
+    url,
+    (tex) => {
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(60, 60);
+      // optional: crisper at glancing angles
+      if (renderer.capabilities.getMaxAnisotropy) {
+        tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      }
+
+      // Use Basic to prove the texture shows up regardless of lights/shadows
+      ground.material = new THREE.MeshBasicMaterial({ map: tex });
+      ground.material.needsUpdate = true;
+    },
+    undefined,
+    // 3) if the image path is wrong, keep the grey so it's still visible
+    (err) => {
+      console.warn('Ground texture failed to load:', url, err);
+      ground.material = new THREE.MeshBasicMaterial({ color: 0x777777 });
+      ground.material.needsUpdate = true;
+    }
+  );
+
+  // keep it slightly below roads (no BASE_HEIGHT reference → no TDZ)
+  ground.position.y = ground.position.y - 0.005;
+}
+
+  
 
 
   // Create a destination & breadcrumb trail
@@ -2790,7 +3177,7 @@ window.addEventListener('keydown', (e) => {
     isPaused = !isPaused;
     pauseMenu.style.display = isPaused ? 'flex' : 'none';
 
-    // 🔊 Pause or resume engine loop only (leave bgMusic playing)
+    //  Pause or resume engine loop only (leave bgMusic playing)
     if (window.engineSound) {
       if (isPaused) engineSound.pause();
       else engineSound.play();
@@ -2847,19 +3234,10 @@ btnInstructions.addEventListener('click', () => {
   const modalContent = document.getElementById('modal-content');
 
   modalTitle.textContent = 'Instructions & Controls';
-  modalContent.innerHTML = `
-    <p>Drive through the city grid, avoid buildings/roadblocks, and evade pursuers.</p>
-    <ul>
-      <li><b>Move:</b> <span class="kbd">W</span> accelerate, <span class="kbd">S</span> brake/reverse</li>
-      <li><b>Steer:</b> <span class="kbd">A</span> / <span class="kbd">D</span></li>
-      <li><b>Camera:</b> <span class="kbd">C</span> (first/third person)</li>
-      <li><b>Lights:</b> <span class="kbd">H</span> headlights, <span class="kbd">L</span> street lamps</li>
-      <li><b>Day/Night:</b> <span class="kbd">N</span></li>
-      <li><b>Extras:</b> <span class="kbd">R</span> replace nearby placeholders, <span class="kbd">P</span> parcel drop, <span class="kbd">B</span> roadblock ahead, <span class="kbd">E</span> pursuer</li>
-    </ul>
-  `;
+  modalContent.innerHTML = INSTRUCTIONS_HTML;
   modalEl.style.display = 'grid';
 });
+
 
 
 // Freeze updates while paused
