@@ -85,6 +85,22 @@
     .modal-card h2 { margin: 6px 0 10px; font: 700 28px/1.1 system-ui, sans-serif; }
     .modal-actions { display:flex; justify-content:flex-end; margin-top:10px; }
     .close { padding:10px 14px; background:#2a2a36; color:#e9ebff; border:none; border-radius:10px; cursor:pointer; }
+
+    /* Vehicle segmented buttons */
+.seg { display:flex; gap:8px; flex-wrap:wrap; }
+.segbtn {
+  padding:10px 12px; border-radius:10px; border:1px solid #2c3442;
+  background:#141b25; color:#dfe6ef; cursor:pointer;
+  font:600 14px/1 system-ui; letter-spacing:.01em;
+  box-shadow: inset 0 0 0 1px #ffffff12;
+  transition: transform .08s ease, filter .08s ease, background .15s ease;
+}
+.segbtn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.segbtn.active {
+  background:#1f8fff; color:#fff;
+  box-shadow: 0 10px 20px #0b377c44, inset 0 0 0 1px #ffffff22;
+}
+
   </style>
 
   <!-- Import map -->
@@ -138,6 +154,23 @@
 <button id="lvlBtn3" style="padding:14px 16px; min-height:64px; border-radius:10px; border:1px solid #2c3442;
   background:#1a2230; color:#e4edf6; font:600 14px system-ui; cursor:pointer;
   text-align:center; line-height:1.2;"></button>
+
+      <!-- VEHICLE SELECT (new) -->
+    <hr style="border:none; border-top:1px solid #202732; margin:14px 0;">
+    <div id="vehicleSelectWrap" style="margin-top:6px;">
+      <div style="color:#cfd6dc; font:700 14px/1.2 system-ui, sans-serif; margin:0 0 8px;">
+        Select Vehicle
+      </div>
+      <div class="seg">
+        <button class="segbtn" data-vehicle="Truck" id="vehTruck">Truck</button>
+        <button class="segbtn" data-vehicle="Sport" id="vehSport">Sport</button>
+        <button class="segbtn" data-vehicle="Bike"  id="vehBike">Bike</button>
+      </div>
+      <div id="vehicleHint" style="margin-top:8px; color:#9aa6b2; font:12px/1.35 system-ui;">
+        (Only selection is saved for now; visual change comes later.)
+      </div>
+    </div>
+
 
 
     </div>
@@ -205,6 +238,36 @@
   </div>
 </div>
 
+<!-- ===== Mission Success (make sure this is a SIBLING of #failUI, not inside it) ===== -->
+<div id="successUI" style="position:absolute; inset:0; display:none; z-index:20;
+  background:rgba(0,0,0,.6); align-items:center; justify-content:center;">
+  <div style="background:#11151b; border:1px solid #2a3038; border-radius:12px;
+      width:min(520px,92vw); padding:20px 22px; box-shadow:0 18px 46px rgba(0,0,0,.5);">
+    <div id="successTitle" style="color:#bfffd3; font:800 20px/1.2 system-ui, sans-serif;">
+      Mission Successfully Completed
+    </div>
+    <div id="successMsg" style="color:#cfd6dc; margin:8px 0 14px; font:500 14px/1.35 system-ui;">
+      Great driving! Ready for the next run?
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button id="btnNextLevel" style="padding:10px 14px; border-radius:10px; border:1px solid #2c3442;
+        background:#1a2230; color:#e4edf6; font:600 14px system-ui; cursor:pointer;">
+        Continue to Next Level
+      </button>
+      <button id="btnBackHome" style="padding:10px 14px; border-radius:10px; border:1px solid #2c3442;
+        background:#141b25; color:#b8c3cf; font:600 14px system-ui; cursor:pointer;">
+        Back to Home Screen
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
+
+    
+
+
 
 
 <!-- Modal -->
@@ -217,8 +280,8 @@
 </div>
 
 <div id="info">
-  W/S = forward/back • A/D = steer • C = toggle 1st/3rd • L = lamps • N = day/night • H = headlights •
-  R = replace placeholders • P = parcel drop • <b>B</b> = roadblock ahead • <b>E</b> = spawn pursuer
+  W/S = forward/back • A/D = steer • C = toggle 1st/3rd • L = lamps • N = day/night • H = headlights • Z = reverse view
+ 
 </div>
 
 <!-- Health HUD -->
@@ -271,6 +334,12 @@ import * as THREE from 'three';
 import { OBJLoader }  from 'three/addons/loaders/OBJLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+
+
+
+
+
+
 /* -------------------- Asset paths -------------------- */
 const WH_PATH = 'assets/50-ware-house/';
 const WH_OBJ  = 'ware house.obj';
@@ -278,6 +347,17 @@ const WH_OBJ  = 'ware house.obj';
 /* Vehicles */
 const VEHICLE_PATH = 'assets/';
 const TRUCK_GLB    = 'Pickup Truck.glb';
+// NEW: other vehicle files
+const SPORT_GLB = 'CAR Model.glb';
+const BIKE_GLB  = 'cartoon banana car.glb';
+
+// NEW: map a selection to its GLB
+const VEHICLE_FILES = {
+  Truck: TRUCK_GLB,
+  Sport: SPORT_GLB,
+  Bike:  BIKE_GLB
+};
+
 
 /* Pursuer: Anti-gravity drone (replaces police car) */
 const DRONE_CANDIDATES = [
@@ -377,6 +457,27 @@ const btnLvl0 = document.getElementById('lvlBtn0');
 const btnLvl1 = document.getElementById('lvlBtn1');
 const btnLvl2 = document.getElementById('lvlBtn2');
 const btnLvl3 = document.getElementById('lvlBtn3');
+
+// --- Vehicle selection UI (new) ---
+const vehButtons = Array.from(document.querySelectorAll('.segbtn[data-vehicle]'));
+
+// Persist choice between visits (optional)
+let selectedVehicle = localStorage.getItem('vehicle') || 'Truck';
+
+function updateVehicleUI() {
+  vehButtons.forEach(b => b.classList.toggle('active', b.dataset.vehicle === selectedVehicle));
+}
+
+vehButtons.forEach(b => {
+  b.addEventListener('click', () => {
+    selectedVehicle = b.dataset.vehicle;
+    localStorage.setItem('vehicle', selectedVehicle);
+    updateVehicleUI();
+    // optional little feedback
+    showToast(`Selected: ${selectedVehicle}`, 900);
+  });
+});
+
 
 const btnBackStart = document.getElementById('btnBackStart');
 
@@ -539,7 +640,8 @@ btnCreds.addEventListener('click', () => {
 btnClose.addEventListener('click', closeModal);
 modalEl.addEventListener('click', (e)=>{ if (e.target === modalEl) closeModal(); });
 
-function startSelectedLevel(idx){
+// make it async
+async function startSelectedLevel(idx){
   // Hide menus, show HUDs
   levelSelectEl.style.display = 'none';
   startEl.style.display = 'none';
@@ -548,7 +650,13 @@ function startSelectedLevel(idx){
   minimapEl.style.display = 'block';
   objectiveUI.style.display = 'block';
 
-  // ⤵️ Ensure the canvas gets a real size now that it's visible
+  // 🔄 Ensure the chosen model is attached (Truck / Sport / Bike)
+  await ensureVehicle(selectedVehicle);   // <-- add this line
+
+  // Optional feedback (keep if you like)
+  console.log('Vehicle selected:', selectedVehicle);
+  showToast(`Vehicle: ${selectedVehicle}`, 1200);
+  // ⤵ Ensure the canvas gets a real size now that it's visible
   resizeMinimap();
   // draw immediately (skip throttles on first frame)
   mmLastFilter = 0;
@@ -630,6 +738,8 @@ function goToLevelSelect(){
   // Show level selector
   refreshLevelSelectLabels();
   levelSelectEl.style.display = 'flex';
+  updateVehicleUI(); // NEW: highlight current vehicle choice
+
 }
 
 btnRetry.onclick = () => {
@@ -648,6 +758,53 @@ addEventListener('keydown', (e)=>{
   }
 });
 
+// Success UI
+const successUI     = document.getElementById('successUI');
+const successTitle  = document.getElementById('successTitle');
+const successMsg    = document.getElementById('successMsg');
+const btnNextLevel  = document.getElementById('btnNextLevel');
+const btnBackHome   = document.getElementById('btnBackHome');
+
+function showSuccessMenu(titleText = 'Mission Successfully Completed', msgText = 'Great driving! Ready for the next run?'){
+  paused = true; isPaused = true; speed = 0; keys.clear();
+  successTitle.textContent = titleText;
+  successMsg.textContent   = msgText;
+  successUI.style.display  = 'flex';
+  if (window.engineSound) engineSound.pause();  // leave bgMusic alone
+}
+
+function hideSuccessMenu(){
+  successUI.style.display = 'none';
+}
+
+function goHome(){
+  hideSuccessMenu();
+  gameStarted = false;
+  paused = false; isPaused = false;
+  // Hide in-game HUDs
+  infoEl.style.display = 'none';
+  healthWrap.style.display = 'none';
+  minimapEl.style.display = 'none';
+  objectiveUI.style.display = 'none';
+  // Hide level select and show start screen
+  levelSelectEl.style.display = 'none';
+  startEl.style.display = 'grid';
+  if (window.engineSound) engineSound.pause();
+}
+
+// Buttons
+btnNextLevel.onclick = () => {
+  hideSuccessMenu();
+  paused = false; isPaused = false;
+  gameStarted = true;
+  // wrap to level 1 after finishing level 4
+  const next = (levelIndex + 1) % LEVELS.length;
+  startLevel(next);
+};
+
+btnBackHome.onclick = goHome;
+
+
 
 
 function startGame(){
@@ -656,6 +813,8 @@ function startGame(){
   startEl.style.display = 'none';
   refreshLevelSelectLabels();
   levelSelectEl.style.display = 'flex'; // centered via inline styles
+  updateVehicleUI(); // NEW: highlight current vehicle choice
+
 }
 
 
@@ -697,10 +856,29 @@ function setFog(color, density){
   renderer.setClearColor(color, 1);
 }
 
+// Smoothly fade fog color + density (safe: assumes scene.fog already exists)
+function transitionFog(toColor, toDensity, duration = 2000){
+  const fromColor   = scene.fog.color.clone();
+  const fromDensity = scene.fog.density;
+  const start = performance.now();
+  const target = new THREE.Color(toColor);
+
+  function step(){
+    const t = Math.min(1, (performance.now() - start) / duration);
+    scene.fog.color.lerpColors(fromColor, target, t);
+    scene.fog.density = THREE.MathUtils.lerp(fromDensity, toDensity, t);
+    renderer.setClearColor(scene.fog.color, 1);
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+
 
 const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.03, 2000);
 camera.position.set(0,6,12);
 scene.add(camera);
+
 
 // ===== Sky gradient dome =====
 // Colors you can tweak:
@@ -863,6 +1041,9 @@ scene.add(car);
 
 const headlightRig = new THREE.Group();
 car.add(headlightRig);
+// Load vehicle that matches the current selection (Truck/Sport/Bike)
+ensureVehicle(selectedVehicle);   // <-- add this line
+
 let headlightBulbs=[], headlightSpots=[], beamMeshes=[], headlightsOn=false;
 
 function clearHeadlights(){ headlightRig.clear(); headlightBulbs.length=0; headlightSpots.length=0; beamMeshes.length=0; }
@@ -902,33 +1083,100 @@ function setHeadlights(on){
 }
 
 /* ===== Load Pickup Truck (GLB) for the player ===== */
-{
-  const loader = new GLTFLoader().setPath(VEHICLE_PATH);
-  loader.load(TRUCK_GLB, (gltf)=>{
-    const truck = gltf.scene;
-    truck.traverse(o=>{
-      if (o.isMesh){
-        o.castShadow = o.receiveShadow = true;
-        if (o.material?.map) o.material.map.colorSpace = THREE.SRGBColorSpace;
+/* ===== Player vehicle loader/swapper (Truck/Sport/Bike) ===== */
+let carModel = null;                // the current model attached under `car`
+let vehicleCurrentType = null;      // 'Truck' | 'Sport' | 'Bike'
+const VEHICLE_PREFABS = {};         // cache prepared roots by filename
+
+function prepareGLBRootForUse(root){
+  // standardize materials/shadows
+  root.traverse(o=>{
+    if (o.isMesh){
+      o.castShadow = o.receiveShadow = true;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats){
+        if (!m) continue;
+        if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+        if ('wireframe' in m) m.wireframe = false;
       }
-    });
-    truck.rotation.y = Math.PI/2; // face +X
-    let box = new THREE.Box3().setFromObject(truck);
-    const size = new THREE.Vector3(); box.getSize(size);
-    const targetLen = 3.9;
-    const s = targetLen / Math.max(1e-6, size.x);
-    truck.scale.setScalar(s);
-    box = new THREE.Box3().setFromObject(truck);
-    truck.position.y = -box.min.y;
-    car.add(truck);
-    rebuildHeadlightsFromBox(box);
-  }, undefined, ()=>{
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8,0.7,0.9), new THREE.MeshStandardMaterial({ color:0x888888 }));
-    body.position.y = 0.35; body.castShadow = body.receiveShadow = true; car.add(body);
-    const box = new THREE.Box3().setFromObject(body);
-    rebuildHeadlightsFromBox(box);
+    }
+  });
+  return root;
+}
+
+function loadVehiclePrefab(filename){
+  return new Promise((resolve)=>{
+    // use cache if available
+    if (VEHICLE_PREFABS[filename]){
+      resolve(VEHICLE_PREFABS[filename]);
+      return;
+    }
+    new GLTFLoader().setPath(VEHICLE_PATH).load(
+      filename,
+      (gltf)=>{
+        const root = prepareGLBRootForUse(gltf.scene);
+        VEHICLE_PREFABS[filename] = root; // keep an original for cloning
+        resolve(root);
+      },
+      undefined,
+      ()=> resolve(null) // failure -> null, we’ll fallback to a box
+    );
   });
 }
+
+/** Load + attach the selected vehicle, keeping the same world size/fit. */
+async function ensureVehicle(type='Truck'){
+  if (vehicleCurrentType === type && carModel) return;
+
+  // remove previous model (keep headlightRig which is a separate child)
+  if (carModel){
+    car.remove(carModel);
+    carModel = null;
+  }
+
+  const file = VEHICLE_FILES[type] || TRUCK_GLB;
+  const prefab = await loadVehiclePrefab(file);
+
+  if (prefab){
+    const node = prefab.clone(true);
+
+    // Face +X like the truck did
+    node.rotation.y = Math.PI/2;
+
+    // Scale so overall length along X ≈ 3.9m (matches your original truck)
+    let box = new THREE.Box3().setFromObject(node);
+    const size = new THREE.Vector3(); box.getSize(size);
+    const targetLen = 3.9;                         // keep driving feel identical
+    const s = targetLen / Math.max(1e-6, size.x);
+    node.scale.setScalar(s);
+
+    // Sit on the ground
+    box = new THREE.Box3().setFromObject(node);
+    node.position.y = -box.min.y;
+
+    car.add(node);
+    carModel = node;
+
+    // Rebuild headlight rig to fit the new bounds
+    rebuildHeadlightsFromBox(box);
+  } else {
+    // Fallback simple box if a GLB fails to load
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8,0.7,0.9),
+      new THREE.MeshStandardMaterial({ color:0x888888 })
+    );
+    body.position.y = 0.35;
+    body.castShadow = body.receiveShadow = true;
+    car.add(body);
+    carModel = body;
+
+    const box = new THREE.Box3().setFromObject(body);
+    rebuildHeadlightsFromBox(box);
+  }
+
+  vehicleCurrentType = type;
+}
+
 
 /* ===================== BUILDINGS, LOD & streaming ===================== */
 let LARGE_PREFAB = null, LARGE_H = 1;
@@ -1428,8 +1676,8 @@ function setDay(){
   amb.intensity = 0.45;
   renderer.toneMappingExposure = 1.0;
 
-  // Fog + sky for day
-  setFog(FOG_DAY_COLOR, FOG_DAY_DENSITY);
+  // Fog + sky for day (smooth)
+  transitionFog(FOG_DAY_COLOR, FOG_DAY_DENSITY);
   setSkyColors(SKY_DAY_TOP, SKY_DAY_BOTTOM);
 
   setStreetLights(true);
@@ -1441,13 +1689,14 @@ function setNight(){
   amb.intensity = 0.06;
   renderer.toneMappingExposure = 1.15;
 
-  // Fog + sky for night
-  setFog(FOG_NIGHT_COLOR, FOG_NIGHT_DENSITY);
+  // Fog + sky for night (smooth)
+  transitionFog(FOG_NIGHT_COLOR, FOG_NIGHT_DENSITY);
   setSkyColors(SKY_NIGHT_TOP, SKY_NIGHT_BOTTOM);
 
   setStreetLights(true);
   setHeadlights(true);
 }
+
 
 function updateObjectiveHUD(){
   const L = LEVELS[levelIndex];
@@ -1468,10 +1717,28 @@ function clearAgents(){
   agents.length = 0;
 }
 function clearGoal(){
-  if (goalNode) { scene.remove(goalNode); goalNode=null; }
-  if (goalLight){ scene.remove(goalLight); goalLight=null; }
+  // keep local refs before we null out globals
+  const node  = goalNode;
+  const light = goalLight;
+
+  // remove extras attached to the goal model
+  if (node?.userData?.ring)  scene.remove(node.userData.ring);
+  if (node?.userData?.beam)  scene.remove(node.userData.beam);
+  if (node?.userData?.flare) scene.remove(node.userData.flare);
+
+  // remove the goal model itself
+  if (node) scene.remove(node);
+
+  // remove the spotlight and its target (the target was added to the scene too)
+  if (light?.target) scene.remove(light.target);
+  if (light) scene.remove(light);
+
+  goalNode  = null;
+  goalLight = null;
+
   clearTrail();
 }
+
 
 function randomSegmentFarFrom(x, z, minDist=DEST_MIN_DIST){
   const c = [];
@@ -1542,42 +1809,24 @@ function endLevel(success){
     return;
   }
 
-  // Rescue level (Level 4 → index 3): win and auto-pause
+  // We reached all goals / the rescue target.
+  // Show the success overlay with buttons instead of auto-advancing.
   if (levelIndex === 3) {
-    showToast('You found Pieter Steph! 🎉', 2200);
-
-    // Pause gameplay
-    isPaused = true;
-    paused = true;
-    speed = 0;
-
-    // Stop engine loop if playing
-    if (window.engineSound && typeof window.engineSound.pause === 'function') {
-      window.engineSound.pause();
-    }
-
-    // Show pause overlay as a victory screen
-    const pauseMenu = document.getElementById('pauseMenu');
-    if (pauseMenu) {
-      pauseMenu.style.display = 'flex';
-      const titleNode = pauseMenu.querySelector('h1');
-      if (titleNode) titleNode.textContent = 'Mission Complete';
-    }
-    return;
-  }
-
-  // Normal flow for Levels 1–3
-  showToast('Level complete!', 1600);
-  if (levelIndex + 1 < LEVELS.length) {
-    setTimeout(() => startLevel(levelIndex + 1), 1100);
+    // Special text for Level 4 (rescue)
+    showSuccessMenu('Rescue Complete', 'You found Pieter Steph! 🎉');
   } else {
-    setTimeout(() => showToast('All deliveries complete — GG! 🎉', 2600), 1000);
+    showSuccessMenu('Mission Successfully Completed', 'Nice work — deliveries made in time!');
   }
 }
 
 
+
 function onReachGoal(){
   deliveries++;
+
+   // remove current goal visuals (flag, beam, flare, ring, light)
+  clearGoal();
+
     //  Confetti on each goal
   if (window.confetti) {
     const base = { origin: { y: 0.6 }, gravity: 0.9 };
@@ -1587,6 +1836,9 @@ function onReachGoal(){
 
     //  short success chime
   playSuccessSfx();
+
+
+  
 
     //  Add 30 seconds to the timer if it hasn’t already run out
   if (timeLeft > 0) {
@@ -1793,23 +2045,38 @@ function addTrailLine(x1, z1, x2, z2){
 }
 
 function buildOrthogonalPath(startSeg, targetSeg){
-  
-  // Path = go along start row, then turn at a junction and go along column to the target.
-  // If they are already aligned on x or z, it becomes a single leg.
+  // Always stay on roads: snap the turn to the nearest road COLUMN and ROW.
+  // Walk: (start row) -> (pivot column) -> (target row) -> (goal along row)
   clearTrail();
 
-  const sx = startSeg.x, sz = startSeg.z;
-  const tx = targetSeg.x, tz = targetSeg.z;
+  // Start row and target row snapped to real road rows/cols
+  const startRowZ  = nearestGridZ(startSeg.z);
+  const targetRowZ = nearestGridZ(targetSeg.z);
 
-  // First leg: keep Z = start row, move X to target X (i.e., drive straight along the road)
-  if (Math.abs(tx - sx) > 1e-3){
-    addTrailLine(sx, sz, tx, sz);
+  // Choose a real column to turn on (closest road column near the target)
+  const pivotColX  = nearestGridX(targetSeg.x);
+
+  // Legs:
+  // 1) along the start row from the car’s current road X to the pivot column
+  if (Math.abs(pivotColX - startSeg.x) > 1e-3) {
+    addTrailLine(startSeg.x, startRowZ, pivotColX, startRowZ);
   }
-  // Second leg: keep X = target column, move Z to target Z
-  if (Math.abs(tz - sz) > 1e-3){
-    addTrailLine(tx, sz, tx, tz);
+
+  // 2) down/up the pivot column to the target row
+  if (Math.abs(targetRowZ - startRowZ) > 1e-3) {
+    addTrailLine(pivotColX, startRowZ, pivotColX, targetRowZ);
   }
+
+  // 3) along the target row to the actual goal X (can be anywhere on that row)
+  if (Math.abs(targetSeg.x - pivotColX) > 1e-3) {
+    addTrailLine(pivotColX, targetRowZ, targetSeg.x, targetRowZ);
+  }
+
+   // --- ensure the trail visibly reaches the goal ---
+  addTrailMarker(targetSeg.x, targetSeg.z);
+  MINI_TRAIL.push(new THREE.Vector2(targetSeg.x, targetSeg.z));
 }
+
 
 function placeGoalAt(seg){
   // remove previous goal if any
@@ -1825,6 +2092,24 @@ function placeGoalAt(seg){
   scene.add(root);
   goalNode = root;
 
+    // Glow ring under the goal for visibility
+  const ringGeo = new THREE.RingGeometry(0.55, 0.95, 48);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0xffe08a,
+    transparent: true,
+    opacity: 0.75,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending
+  });
+  const goalRing = new THREE.Mesh(ringGeo, ringMat);
+  goalRing.rotation.x = -Math.PI / 2;
+  goalRing.position.set(seg.x, BASE_HEIGHT + 0.01, seg.z);
+  scene.add(goalRing);
+
+  // keep a handle so we can animate it
+  goalNode.userData.ring = goalRing;
+
+
   // beacon light
   const L = new THREE.SpotLight(0xffe08a, 4.5, 26, THREE.MathUtils.degToRad(55), 0.45, 2.0);
   L.position.set(seg.x, 6.2, seg.z);
@@ -1832,6 +2117,25 @@ function placeGoalAt(seg){
   scene.add(target); L.target = target;
   scene.add(L);
   goalLight = L;
+
+    // --- extra visibility: vertical beam + camera-facing flare ---
+  // Vertical “beacon” beam (additive, transparent)
+  const beamGeo = new THREE.CylinderGeometry(0.45, 1.25, 10, 16, 1, true);
+  const beamMat = new THREE.MeshBasicMaterial({
+    color: 0x88c6ff,
+    transparent: true,
+    opacity: 0.22,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  const beam = new THREE.Mesh(beamGeo, beamMat);
+  beam.position.set(seg.x, BASE_HEIGHT + 5.0, seg.z); // centered on flag, ~10m tall
+  scene.add(beam);
+
+  goalNode.userData.beam  = beam;
+  
+
 }
 
 function placeRescueAt(seg){
@@ -2009,6 +2313,57 @@ function endReversed() {
   reversedControls = false;
   showToast('Controls normal', 900);
 }
+
+/* ===================== Fog Vision (visibility cut) ===================== */
+let fogUntil = 0;
+const fogBackup = { color: new THREE.Color(), density: 0, active: false };
+
+function isFogActive(){ return performance.now() < fogUntil; }
+
+// Show/Hide the highlighted path (3D breadcrumbs + minimap polyline)
+function setTrailVisible(v){
+  // 3D breadcrumbs (group or individual markers)
+  if (window.trailGroup) trailGroup.visible = v;
+  if (window.trailMarkers?.length) window.trailMarkers.forEach(m => m.visible = v);
+
+  // Minimap polyline (single Line or Line2)
+  if (window.miniTrailLine) miniTrailLine.visible = v;
+
+  // If your minimap uses a sprite trail instead, also gate that here
+  if (window.miniTrailSprites?.length) window.miniTrailSprites.forEach(s => s.visible = v);
+}
+
+
+function activateFog(ms = 4000){
+  fogUntil = performance.now() + ms;
+
+  // backup current fog so we can restore *exactly*
+  if (scene.fog) {
+    fogBackup.color.copy(scene.fog.color);
+    fogBackup.density = scene.fog.density;
+    fogBackup.active = true;
+  }
+
+  // ramp to heavy, grey-ish fog for a few seconds
+  // (feel free to tweak the color or the density 0.09 → 0.12 for thicker)
+  transitionFog(0x777b86, Math.max(scene.fog?.density ?? 0.0, 0.09), 500);
+  showToast('Fog! visibility reduced', 900);
+   // HIDE PATH for duration of fog
+  setTrailVisible(false);
+
+  // safety restore (in case we’re off-screen or paused)
+  setTimeout(() => {
+    if (!isFogActive() && fogBackup.active) {
+      transitionFog(fogBackup.color.getHex(), fogBackup.density, 500);
+      fogBackup.active = false;
+      // SHOW PATH again when fog ends
+      setTrailVisible(true);
+    }
+  }, ms);
+}
+
+
+
 
 
 /* ===================== Ghost Mode (pass-through) ===================== */
@@ -2521,6 +2876,19 @@ const PERIOD = 3*ROAD_LEN + XWALK_LEN;
 function makeCenters(min,max){ const first=min + ROAD_LEN*3.5 + XWALK_LEN/2; const last=max - (ROAD_LEN + XWALK_LEN/2); const arr=[]; for(let c=first; c<=last+1e-6; c+=PERIOD) arr.push(c); return arr; }
 const xs = makeCenters(-MAP_HALF, +MAP_HALF);
 const zs = makeCenters(-MAP_HALF, +MAP_HALF);
+
+// Snap any coordinate to the nearest actual road column/row
+function nearestGridX(x){
+  let best = xs[0], bestD = Infinity;
+  for (const v of xs){ const d=Math.abs(v-x); if (d<bestD){ bestD=d; best=v; } }
+  return best;
+}
+function nearestGridZ(z){
+  let best = zs[0], bestD = Infinity;
+  for (const v of zs){ const d=Math.abs(v-z); if (d<bestD){ bestD=d; best=v; } }
+  return best;
+}
+
 
 function placeCrosswalk(x,z,rot90=false){ const m = createCrosswalkTile({ length:XWALK_LEN + 2*JOIN_EPS, width:ROAD_WIDTH + 2*JOIN_EPS, baseHeight:BASE_HEIGHT }); m.position.set(x,0,z); if (rot90) m.rotation.y=Math.PI/2; scene.add(m); }
 function placeThreeRoadsX(x1,x2,z){ const L=ROAD_LEN+JOIN_EPS; const start=x1+(XWALK_LEN/2)+(ROAD_LEN/2)-JOIN_EPS/2; for(let i=0;i<3;i++){ const cx=start + i*ROAD_LEN; const r=createRoadTile({length:L,width:ROAD_WIDTH,baseHeight:BASE_HEIGHT}); r.position.set(cx,0,z); scene.add(r); rememberSegment(cx,z,true); } }
@@ -3111,14 +3479,19 @@ if (goalNode){
       // collected!
       scene.remove(pb.mesh);
       powerBoxes.splice(i, 1);
-      // random effect: 50/50 ghost vs reversed
-      if (Math.random() < 0.5) {
-        showToast('yellow box: GHOST MODE!', 1400);
-        activateGhostMode(5000);
-      } else {
-        showToast('yellow box: REVERSED CONTROLS!', 1400);
-        activateReversed(3000);
-      }
+      // random effect: Ghost / Reversed / Fog Vision (≈1/3 each)
+const r = Math.random();
+if (r < 1/3) {
+  showToast('yellow box: GHOST MODE!', 1400);
+  activateGhostMode(5000);
+} else if (r < 2/3) {
+  showToast('yellow box: REVERSED CONTROLS!', 1400);
+  activateReversed(3000);
+} else {
+  showToast('yellow box: FOG VISION!', 1400);
+  activateFog(4000);
+}
+
 
     }
   }
@@ -3147,6 +3520,51 @@ function tick(now=performance.now()){
   update(dt);
   // Keep the sky centered on the camera to avoid ever touching the far plane
 sky.mesh.position.copy(camera.position);
+  // --- Pulse the goal’s glow ring ---
+  if (goalNode?.userData?.ring) {
+    const t = performance.now() * 0.002;
+    const s = 0.92 + Math.sin(t) * 0.08;
+    goalNode.userData.ring.scale.setScalar(s);
+  }
+
+    // --- Animate goal beacon/flare for long-range visibility ---
+  if (goalNode) {
+    const t = performance.now() * 0.001;
+
+    // Softly vary beam opacity
+    const beam = goalNode.userData?.beam;
+    if (beam && beam.material) {
+      beam.material.opacity = 0.18 + 0.10 * (0.5 + 0.5 * Math.sin(t * 2.0));
+      // (optional) tiny width wobble
+      const s = 1.0 + 0.03 * Math.sin(t * 1.7);
+      beam.scale.set(s, 1, s);
+    }
+
+    // Flare: face camera + subtle pulse
+    const flare = goalNode.userData?.flare;
+    if (flare && flare.material) {
+      flare.material.opacity = 0.55 + 0.25 * Math.sin(t * 1.3);
+      flare.lookAt(camera.position);
+    }
+
+    // (keep your ring pulse here if you added it earlier)
+  }
+
+    // --- Fog Vision: restore after timer ends (extra safety) ---
+  if (!isFogActive() && fogBackup.active) {
+    transitionFog(fogBackup.color.getHex(), fogBackup.density, 500);
+    fogBackup.active = false;
+  }
+
+
+    // --- Fog Vision: restore after timer ends (extra safety) ---
+  if (!isFogActive() && fogBackup.active) {
+    transitionFog(fogBackup.color.getHex(), fogBackup.density, 500);
+    fogBackup.active = false;
+
+    // SHOW PATH again when fog ends
+    setTrailVisible(true);
+  }
 
    renderer.render(scene, camera);
   fpsFrames++; if(!fpsMeasureT) fpsMeasureT=now; const elapsed=now-fpsMeasureT;
