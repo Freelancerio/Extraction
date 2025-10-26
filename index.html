@@ -319,9 +319,27 @@
   z-index: 9999;
 ">
   <h1 style="color: white; font-size: 2em; margin-bottom: 1em;">Paused</h1>
+
+  <!-- ▼▼ NEW: Music Volume control ▼▼ -->
+  <div style="display:flex; flex-direction:column; gap:8px; align-items:center; margin-bottom: 16px;">
+    <label for="musicVolume" style="color:#e9ebff; font:600 14px/1.2 system-ui;">
+      Music Volume: <span id="musicVolumeValue">25%</span>
+    </label>
+    <input
+      id="musicVolume"
+      type="range"
+      min="0" max="1" step="0.01"
+      value="0.25"
+      style="width:min(360px, 80vw); accent-color:#1f8fff; cursor:pointer;"
+      aria-label="Music Volume"
+    />
+  </div>
+  <!-- ▲▲ NEW: Music Volume control ▲▲ -->
+
   <button id="btnQuitLevel" style="padding: 12px 24px; margin: 8px; font-size: 1.1em;">Quit Level</button>
   <button id="btnInstructions" style="padding: 12px 24px; margin: 8px; font-size: 1.1em;">Instructions and Controls</button>
 </div>
+
 
 <div id="toast" aria-live="polite"></div>
 
@@ -450,6 +468,31 @@ const btnCreds  = document.getElementById('btn-credits');
 const btnClose  = document.getElementById('btn-close');
 const modalTitle   = document.getElementById('modal-title');
 const modalContent = document.getElementById('modal-content');
+
+// === Music volume slider (Pause Menu) ===
+const musicVolSlider = document.getElementById('musicVolume');
+const musicVolLabel  = document.getElementById('musicVolumeValue');
+
+// Load saved volume if present
+const savedMusicVol = parseFloat(localStorage.getItem('musicVolume'));
+if (!Number.isNaN(savedMusicVol)) {
+  bgMusic.volume = Math.min(1, Math.max(0, savedMusicVol));
+}
+
+// Reflect current bgMusic volume in the UI
+if (musicVolSlider && musicVolLabel) {
+  musicVolSlider.value = String(bgMusic.volume.toFixed(2));
+  musicVolLabel.textContent = `${Math.round(bgMusic.volume * 100)}%`;
+
+  // Live update volume as the user drags
+  musicVolSlider.addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    bgMusic.volume = Math.min(1, Math.max(0, v));
+    musicVolLabel.textContent = `${Math.round(bgMusic.volume * 100)}%`;
+    localStorage.setItem('musicVolume', bgMusic.volume.toFixed(2));
+  });
+}
+
 
 // Level select UI
 const levelSelectEl = document.getElementById('levelSelect');
@@ -1877,6 +1920,24 @@ let goalLight = null;
 const trailGroup = new THREE.Group(); scene.add(trailGroup);
 const trailLights = [];
 
+// --- Exclusion zone so obstacles don't spawn on top of the goal/rescue ---
+let goalNoSpawnBox = null;
+
+/** Rebuild the exclusion box around whatever node represents the goal. */
+function updateGoalNoSpawnBoxFrom(node, padding = 4) {
+  if (!node) { goalNoSpawnBox = null; return; }
+  goalNoSpawnBox = new THREE.Box3().setFromObject(node).expandByScalar(padding);
+}
+
+/** Quick XY test (XZ in world) – use center point with a little extra margin. */
+function isInsideGoalNoSpawn(x, z, extra = 0) {
+  if (!goalNoSpawnBox) return false;
+  // Expand a copy so we don't mutate the original
+  const b = goalNoSpawnBox.clone().expandByScalar(extra);
+  return (x > b.min.x && x < b.max.x && z > b.min.z && z < b.max.z);
+}
+
+
 // Goal placement distances (closer, but not too close)
 const DEST_MIN_DIST = ROAD_LEN * 5;   // was *8 — closer than before
 const DEST_MAX_DIST = ROAD_LEN * 12;  // cap so goals aren’t *too* far
@@ -2091,6 +2152,9 @@ function placeGoalAt(seg){
   root.rotation.y = Math.PI * 0.5 * (Math.random()*4|0);
   scene.add(root);
   goalNode = root;
+  // Rebuild the no-spawn exclusion zone around the goal
+updateGoalNoSpawnBoxFrom(goalNode, 4); // increase padding if needed
+
 
     // Glow ring under the goal for visibility
   const ringGeo = new THREE.RingGeometry(0.55, 0.95, 48);
@@ -2150,6 +2214,8 @@ function placeRescueAt(seg){
   root.position.set(seg.x, root.position.y, seg.z);
   scene.add(root);
   goalNode = root;
+  updateGoalNoSpawnBoxFrom(goalNode, 4);
+
 
    // --- add glow ring + brighter beacon ---
   {
@@ -2482,6 +2548,10 @@ function tickPowerBoxProgress() {
 
 function addRoadblockAt(x, z, isX = true) {
   let block;
+    // --- NEW: never spawn a roadblock on the goal/rescue ---
+  // "2.5" gives the center point a little extra buffer inside the exclusion box.
+  if (isInsideGoalNoSpawn(x, z, 2.5)) return null;
+
   if (RUBBISH_PREFAB) {
     block = RUBBISH_PREFAB.clone(true);
     block.position.set(x, 0, z);
