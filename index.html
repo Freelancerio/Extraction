@@ -45,6 +45,9 @@
       font: 600 18px/1.3 system-ui, sans-serif; letter-spacing: .2px;
       box-shadow: 0 6px 18px rgba(0,0,0,.35); opacity: 0; pointer-events: none;
       transition: opacity .25s ease; z-index: 10000;
+      will-change: transform, opacity;
+      backface-visibility: hidden;
+      contain: layout paint; 
     }
     #toast.show { opacity: 1; }
 
@@ -100,6 +103,40 @@
   background:#1f8fff; color:#fff;
   box-shadow: 0 10px 20px #0b377c44, inset 0 0 0 1px #ffffff22;
 }
+
+/* ===== Loading Screen ===== */
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  display: grid;               /* visible by default until JS hides it */
+  place-items: center;
+  gap: 16px;
+  background: radial-gradient(1200px 800px at 50% 40%, #0e1218, #0a0d12 65%, #07090d);
+  z-index: 9999;
+}
+
+#loading-screen .spinner {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.12);
+  border-top-color: rgba(255,255,255,0.85);
+  animation: spin 0.9s linear infinite;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
+
+#loading-screen .loading-text {
+  font: 600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #cfd6dc;
+  letter-spacing: .02em;
+  text-shadow: 0 1px 2px rgba(0,0,0,.5);
+  opacity: .95;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 
   </style>
 
@@ -280,6 +317,13 @@
   </div>
 </div>
 
+<div id="loading-screen" aria-hidden="true">
+  <div class="spinner" aria-label="Loading"></div>
+  <div class="loading-text">
+    <span class="msg">Loading assets…</span>
+  </div>
+</div>
+
 <div id="info">
   W/S = forward/back • A/D = steer • C = toggle 1st/3rd • N = day/night • H = headlights • Z = reverse view • Hold RMB = rotate camera
  
@@ -304,7 +348,7 @@
 <canvas id="minimap"></canvas>
 <div id="toast" aria-live="polite"></div>
 
-<canvas id="minimap"></canvas>
+
 
 <!-- ===== Pause Menu Overlay ===== -->
 <div id="pauseMenu" style="
@@ -342,7 +386,7 @@
 </div>
 
 
-<div id="toast" aria-live="polite"></div>
+
 
 <!-- Confetti (no download needed) -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
@@ -470,6 +514,22 @@ const btnClose  = document.getElementById('btn-close');
 const modalTitle   = document.getElementById('modal-title');
 const modalContent = document.getElementById('modal-content');
 const btnYoutube = document.getElementById('btn-youtube');
+
+// ---- Loading overlay helpers ----
+const loadingEl = document.getElementById('loading-screen');
+
+function showLoading(message = 'Loading…') {
+  if (!loadingEl) return;
+  const msgEl = loadingEl.querySelector('.msg');
+  if (msgEl) msgEl.textContent = message;
+  loadingEl.style.display = 'grid';
+}
+
+function hideLoading() {
+  if (!loadingEl) return;
+  loadingEl.style.display = 'none';
+}
+
 
 
 // === Music volume slider (Pause Menu) ===
@@ -599,16 +659,16 @@ const CREDITS = [
 const INSTRUCTIONS_HTML = `
 <h2> Game Background – “Extraction”</h2>
 <p>
-Your closest friend, <strong>Pieter Steph</strong>, has been <strong>kidnapped by the Italian Mafia</strong>. With no ransom money and no leads, you turn to the underworld for help. A shadowy smuggling syndicate agrees to aid your search — but not for free.<br><br>
+Your girlfriend, <strong>Petra Stephanie</strong>, has been <strong>kidnapped by the Italian Mafia</strong>. With no ransom money and no leads, you turn to the underworld for help. A shadowy smuggling syndicate agrees to aid your search — but not for free.<br><br>
 To earn their trust, you must complete a series of high-risk <strong>delivery missions</strong> across a sprawling, crime-ridden city. The cargo you carry is fragile and highly illegal. Any delay or damage could cost you your only chance to save your friend.<br><br>
-Complete all assignments and survive the gauntlet, and the syndicate will finally reveal <strong>Pieter Steph’s last known location</strong>.
+Complete all assignments and survive the gauntlet, and the syndicate will finally reveal <strong>Petra Stephanie’s last known location</strong>.
 </p>
 
 <hr>
 
 <h2> How to Play</h2>
 <ul>
-  <li><strong>Objective:</strong> Complete all deliveries before the timer runs out. Each successful delivery earns time and progress toward uncovering Pieter Steph’s whereabouts.</li>
+  <li><strong>Objective:</strong> Complete all deliveries before the timer runs out. Each successful delivery earns time and progress toward uncovering Petra Stephanie’s whereabouts.</li>
   <li><strong>Controls:</strong> Drive your truck through the city streets, following the road network to reach the delivery goal (marked with a bright beacon). Completing a delivery adds <strong>+30 seconds</strong> to your remaining time.</li>
   <li><strong>Avoid Damage:</strong> Crashing into buildings, streetlights, and obstacles slows you down and risks losing control of your vehicle.</li>
   <li><strong>Hazards – Broken Glass:</strong> Scattered across the city are patches of broken glass. Driving over them temporarily <strong>slows your vehicle</strong> and reduces handling precision — leaving you exposed to enemy drones.</li>
@@ -717,6 +777,7 @@ modalEl.addEventListener('click', (e)=>{ if (e.target === modalEl) closeModal();
 
 // make it async
 async function startSelectedLevel(idx){
+  showLoading('Preparing level…');
   // Hide menus, show HUDs
   levelSelectEl.style.display = 'none';
   startEl.style.display = 'none';
@@ -752,6 +813,9 @@ startSound.addEventListener('ended', () => {
   engineSound.currentTime = 0;
   engineSound.play();
 });
+
+hideLoading();
+
 
 
 
@@ -1758,7 +1822,7 @@ const LEVELS = [
   { name:'Dawn Delivery',  goals:3, time:180, night:false, pursuers:0, roadblocks:1, glass:1 },
   { name:'Night Shift',    goals:4, time:150, night:true,  pursuers:1, roadblocks:2, glass:2 },
   { name:'Lockdown',       goals:5, time:150, night:true,  pursuers:3, roadblocks:3, glass:3 },
-  // Level 4: rescue Pieter Steph – 1 target, same time & pursuers as Level 3
+  // Level 4: rescue Petra Stephanie – 1 target, same time & pursuers as Level 3
   { name:'The Rescue',     goals:1, time:150, night:true,  pursuers:3, roadblocks:3, glass:3 },
 ];
 
@@ -1789,7 +1853,7 @@ function setDay(){
   setSkyColors(SKY_DAY_TOP, SKY_DAY_BOTTOM);
 
   setStreetLights(true);
-  setHeadlights(true);
+  setHeadlights(false);
 }
 
 function setNight(){
@@ -1921,7 +1985,7 @@ function endLevel(success){
   // Show the success overlay with buttons instead of auto-advancing.
   if (levelIndex === 3) {
     // Special text for Level 4 (rescue)
-    showSuccessMenu('Rescue Complete', 'You found Pieter Steph! 🎉');
+    showSuccessMenu('Rescue Complete', 'You found Petra Stephanie! ');
   } else {
     showSuccessMenu('Mission Successfully Completed', 'Nice work — deliveries made in time!');
   }
@@ -3062,15 +3126,8 @@ car.rotation.y = heading;
 
 
 
-/* ===================== Warehouse behind the car ===================== */
-function loadOBJ(path, obj){ return new Promise((res,rej)=> new OBJLoader().setPath(path).load(obj,res,undefined,rej)); }
-const WAREHOUSE_DISTANCE_BEHIND = 40, WAREHOUSE_TARGET_LONGEST = 60;
-loadOBJ(WH_PATH, WH_OBJ).then((wh)=>{
-  wh.traverse(o=>{ if(o.isMesh){ o.castShadow=o.receiveShadow=true; if(!o.material) o.material=new THREE.MeshLambertMaterial({ color:0x888888 }); } });
-  const box=new THREE.Box3().setFromObject(wh); const size=new THREE.Vector3(); box.getSize(size);
-  const s= WAREHOUSE_TARGET_LONGEST / Math.max(1e-6, Math.max(size.x,size.y,size.z)); wh.scale.setScalar(s);
-  const box2=new THREE.Box3().setFromObject(wh); wh.position.y = -box2.min.y; wh.position.x = carStartX - WAREHOUSE_DISTANCE_BEHIND; wh.position.z = spawnZ; scene.add(wh);
-}).catch(()=>console.warn('Could not load warehouse OBJ.'))  ;
+
+
 
 /* ===================== Minimap ===================== */
 const mm = document.getElementById('minimap');
@@ -3208,11 +3265,38 @@ function drawMinimap(){
 
 /* ===================== Parcel drop + toast ===================== */
 function showToast(message, ms=3000){ const t=document.getElementById('toast'); t.textContent=message; t.classList.add('show'); setTimeout(()=> t.classList.remove('show'), ms); }
+let _dropBusy = false;
+
 function dropParcel(){
-  const el=document.createElement('div'); el.className='parcel'; document.body.appendChild(el);
-  requestAnimationFrame(()=>{ el.style.transform=`translateY(${window.innerHeight+80}px)`; el.style.opacity='0'; });
-  el.addEventListener('transitionend', ()=>{ el.remove(); showToast('parcel received, head to the destination', 3000); }, { once:true });
+  // Avoid stacking if called twice during the same frame/transition
+  if (_dropBusy) return;
+  _dropBusy = true;
+
+  // If a modal/success/fail overlay is open, skip the drop (resume next spawn)
+  const overlaysVisible =
+    document.getElementById('successUI')?.style.display !== 'none' ||
+    document.getElementById('failUI')?.style.display !== 'none'   ||
+    document.getElementById('modal')?.style.display      !== 'none';
+
+  if (overlaysVisible) { _dropBusy = false; return; }
+
+  const el = document.createElement('div');
+  el.className = 'parcel';
+  document.body.appendChild(el);
+
+  requestAnimationFrame(()=>{
+    // force GPU compositing for smoothness
+    el.style.transform = `translate3d(0, ${window.innerHeight+80}px, 0)`;
+    el.style.opacity = '0';
+  });
+
+  el.addEventListener('transitionend', ()=>{
+    el.remove();
+    showToast('parcel received, head to the destination', 3000);
+    _dropBusy = false;
+  }, { once:true });
 }
+
 
 // --- SFX: drone explosion (separate instance each time so overlaps work) ---
 const EXPLOSION_SFX_PATH = 'assets/sounds/drone-explosion.wav';
@@ -3380,7 +3464,11 @@ async function bootstrap(){
 
 }
 
-bootstrap();
+showLoading('Loading assets…');
+bootstrap().finally(() => {
+  hideLoading();
+});
+
 
 /* ===================== Controls & movement ===================== */
 const keys=new Set();
