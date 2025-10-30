@@ -121,10 +121,11 @@
       <button id="btn-play" class="btn" autofocus>Play</button>
       <button id="btn-instructions" class="btn secondary">Instructions &amp; Controls</button>
       <button id="btn-credits" class="btn tertiary">Credits</button>
+      <button id="btn-youtube" class="btn secondary">YouTube videos (trailer + dev log)</button>
     </div>
     <p style="margin:16px 0 0; color:#9aa0b5;">
       Tip: <span class="kbd">WASD</span> to drive • <span class="kbd">C</span> camera • <span class="kbd">N</span> day/night •
-      <span class="kbd">H</span> headlights • <span class="kbd">L</span> street lamps
+      <span class="kbd">H</span> headlights 
     </p>
   </div>
 </div>
@@ -280,7 +281,7 @@
 </div>
 
 <div id="info">
-  W/S = forward/back • A/D = steer • C = toggle 1st/3rd • L = lamps • N = day/night • H = headlights • Z = reverse view
+  W/S = forward/back • A/D = steer • C = toggle 1st/3rd • N = day/night • H = headlights • Z = reverse view • Hold RMB = rotate camera
  
 </div>
 
@@ -426,7 +427,7 @@ const GOAL_FLAG_GLB = 'Goal Flag.glb';
 const PAVER_GLB = 'flagstone paver.glb';
 
 /* Rescue target (person to reach) */
-const RESCUE_GLB = 'Punk.glb';
+const RESCUE_GLB = 'Woman.glb';
 
 
 // === Background Music Setup ===
@@ -468,6 +469,8 @@ const btnCreds  = document.getElementById('btn-credits');
 const btnClose  = document.getElementById('btn-close');
 const modalTitle   = document.getElementById('modal-title');
 const modalContent = document.getElementById('modal-content');
+const btnYoutube = document.getElementById('btn-youtube');
+
 
 // === Music volume slider (Pause Menu) ===
 const musicVolSlider = document.getElementById('musicVolume');
@@ -538,7 +541,7 @@ function refreshLevelSelectLabels(){
   '3 goals, 3:00 timer, no pursuers, day.',
   '4 goals, 2:30, 1 pursuer, night + lamps on.',
   '5 goals, 2:30, 2–3 pursuers, extra roadblocks.',
-  'Find Pieter Steph — 1 target, 2:30, 3 pursuers (rescue).'
+  'Find your girlfriend Petra Stephanie — 1 target, 2:30, 3 pursuers .'
 ];
 
 
@@ -620,7 +623,7 @@ Complete all assignments and survive the gauntlet, and the syndicate will finall
   <li><strong>Timer:</strong> If time reaches zero, the mission fails. Each successful delivery extends your time, but every crash or delay risks failure.</li>
   <li><strong>Night Mode:</strong> Press <kbd>N</kbd> to toggle night lighting. Use headlights to navigate low-visibility areas.</li>
   <li><strong>Mini-Map:</strong> The minimap in the lower-left shows your position, the blue delivery route, and approaching drones.</li>
-  <li><strong>Goal:</strong> Complete all deliveries in each level without being destroyed. After the <strong>third level</strong>, the gang will reveal Pieter Steph’s location.</li>
+  <li><strong>Goal:</strong> Complete all deliveries in each level without being destroyed. After the <strong>third level</strong>, the gang will reveal Petra Stephanie’s location.</li>
 </ul>
 
 <hr>
@@ -639,9 +642,38 @@ Busier city center with tighter turns, more debris, and faster drones. Traffic b
 
 <h3>Level 3 – The Gauntlet</h3>
 <p>
-A high-security zone with coordinated drone pursuit and narrower streets. Complete these missions to uncover <strong>Pieter Steph’s location</strong> and the truth behind his disappearance.
+A high-security zone with coordinated drone pursuit and narrower streets. Complete these missions to uncover <strong>Petra Stephanie’s location</strong> and the truth behind his disappearance.
+</p>
+
+<h3>Level 4 – The Rescue</h3>
+<p>
+The ultimate mission where you are given one chance to save Petra Stephanie , but beware as the drone now know your every move
 </p>
 `;
+
+
+// === YouTube links (edit the hrefs later with your real URLs) ===
+const YOUTUBE_HTML = `
+  <h2>Videos</h2>
+  <p>Trailer and developer log for <em>Extraction</em>. These open in a new tab.</p>
+  <ul style="list-style: none; padding: 0; margin: 14px 0;">
+    <li style="margin: 8px 0;">
+      <a id="ytTrailer" href="https://youtu.be/VOEjXdywH4s" target="_blank" rel="noopener"
+         style="color:#6ab0ff; text-decoration:none;">
+        ▶ Trailer
+      </a>
+    </li>
+    <li style="margin: 8px 0;">
+      <a id="ytDevlog" href="https://youtu.be/VOEjXdywH4s" target="_blank" rel="noopener"
+         style="color:#ff8a8a; text-decoration:none;">
+        ▶ Dev log
+      </a>
+    </li>
+  </ul>
+  <p style="color:#9aa6b2; font-size:12px; margin-top:16px;">
+  </p>
+`;
+
 
 
 
@@ -863,6 +895,11 @@ function startGame(){
 
 btnPlay.addEventListener('click', startGame);
 startEl.addEventListener('keydown', (e)=>{ if (e.code === 'Enter') startGame(); });
+
+btnYoutube.addEventListener('click', () => {
+  openModal('YouTube videos (trailer + dev log)', YOUTUBE_HTML);
+});
+
 
 /* ===================== RENDERER ===================== */
 const renderer = new THREE.WebGLRenderer({ antialias:false, powerPreference:'high-performance' });
@@ -1338,9 +1375,28 @@ function updateStreaming(nowMs){
 }
 
 /* ===================== Collisions ===================== */
+
+// Streetlamp colliders (static AABBs)
+const lampColliders = [];
+
 const CAR_RADIUS = 0.9;
 function box3ToAABB2D(box){ return { minX:box.min.x, maxX:box.max.x, minZ:box.min.z, maxZ:box.max.z }; }
 function makeAABBFor(obj){ const b = new THREE.Box3().setFromObject(obj); return box3ToAABB2D(b); }
+function addLampCollider(group){
+  // Build an AABB once (lamps are static)
+  const aabb = makeAABBFor(group);
+  lampColliders.push({
+    mesh: group,
+    aabb,
+    center: { x: group.position.x, z: group.position.z }
+  });
+}
+
+function removeLampCollider(group){
+  const i = lampColliders.findIndex(c => c.mesh === group);
+  if (i >= 0) lampColliders.splice(i, 1);
+}
+
 function circleAABBResolve(cx,cz,r,aabb){
   const qx = Math.min(Math.max(cx, aabb.minX), aabb.maxX);
   const qz = Math.min(Math.max(cz, aabb.minZ), aabb.maxZ);
@@ -1605,11 +1661,15 @@ function attachBulbLight(lamp) {
 
 
 function spawnLampPairForSegment(seg) {
-  // remove existing pair if any
+    // remove existing pair if any
   if (activeLampPair) {
     scene.remove(activeLampPair.left, activeLampPair.right);
+    // ▼ add these two lines:
+    removeLampCollider(activeLampPair.left);
+    removeLampCollider(activeLampPair.right);
     activeLampPair = null;
   }
+
 
   // Compute the two sidewalk positions for this straight segment
   const leftPos  = new THREE.Vector3();
@@ -1629,12 +1689,17 @@ function spawnLampPairForSegment(seg) {
   const leftLamp  = createStreetLamp({ side: "left",  x: leftPos.x,  z: leftPos.z  });
   const rightLamp = createStreetLamp({ side: "right", x: rightPos.x, z: rightPos.z });
 
-  // Add to scene and remember
+    // Add to scene and remember
   scene.add(leftLamp, rightLamp);
   activeLampPair = { left: leftLamp, right: rightLamp, key: segKey(seg) };
 
+  // ▼ register their AABBs for collisions
+  addLampCollider(leftLamp);
+  addLampCollider(rightLamp);
+
   // Make sure intensity matches current day/night toggle
   setStreetLights(streetLightsOn);
+
 }
 
 /** Choose the next straight road segment in front of the car and ensure lamps exist there. */
@@ -3094,6 +3159,29 @@ function drawMinimap(){
     }
   }
 
+    // ----- pursuer drones (red dots) -----
+  // Renders each agent with .isDrone === true as a red dot on the minimap.
+  for (const a of agents) {
+    if (!a?.mesh || !a.isDrone) continue;
+
+    // Convert world → minimap space (centered on the car)
+    const sx = (a.mesh.position.x - carX) * MINIMAP_SCALE + cx;
+    const sz = (a.mesh.position.z - carZ) * MINIMAP_SCALE + cz;
+
+    // Skip if outside the circular mask for a small perf win
+    const dx = sx - cx, dz = sz - cz;
+    const r = MINIMAP_RADIUS() - 2;
+    if (dx*dx + dz*dz > r*r) continue;
+
+    mmCtx.beginPath();
+    mmCtx.arc(sx, sz, 4, 0, Math.PI * 2);
+    mmCtx.fillStyle = '#ff4d4f';           // red
+    mmCtx.shadowColor = 'rgba(0,0,0,0.45)';// soft drop-shadow like the player dot
+    mmCtx.shadowBlur = 6;
+    mmCtx.fill();
+  }
+
+
   // player dot
   mmCtx.save();
   mmCtx.beginPath();
@@ -3163,6 +3251,13 @@ function getNearbyAABBs(cx, cz, radius = 50) {
     const b1 = new THREE.Box3().setFromObject(pair.b1); out.push(box3ToAABB2D(b1));
     const b2 = new THREE.Box3().setFromObject(pair.b2); out.push(box3ToAABB2D(b2));
   }
+
+    // Streetlamps
+  for (const l of lampColliders) {
+    const dx = cx - l.center.x, dz = cz - l.center.z;
+    if (dx*dx + dz*dz <= radius*radius) out.push(l.aabb);
+  }
+
   for (const o of obstacles) {
     const dx = cx - o.center.x, dz = cz - o.center.z;
     if (dx*dx + dz*dz <= radius*radius) out.push(o.aabb);
